@@ -1,0 +1,11 @@
+{
+  "name": "lyceum",
+  "owner": { "name": "Andrew Friedman" },
+  "plugins": [
+    {
+      "name": "lyceum",
+      "source": "./",
+      "description": "Narrated, 3Blue1Brown-style explainer videos: the Lyceum skill (script, narrate, animate, render)."
+    }
+  ]
+}

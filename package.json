@@ -1,0 +1,31 @@
+{
+  "name": "lyceum",
+  "version": "0.1.0",
+  "description": "Narrated, 3Blue1Brown-style explainer videos from a script: text-to-speech with word timings, and Remotion scenes timed to the spoken words. Built to be driven by a coding agent.",
+  "license": "MIT",
+  "author": "Andrew Friedman",
+  "repository": { "type": "git", "url": "git+https://github.com/acfriedman/lyceum.git" },
+  "type": "module",
+  "bin": { "lyceum": "bin/lyceum.mjs" },
+  "exports": {
+    "./kit": "./kit/scene.ts",
+    "./package.json": "./package.json"
+  },
+  "files": ["bin", "kit", "tools", "fonts", "skills", ".claude-plugin", "README.md", "LICENSE"],
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "typecheck": "tsc -p ."
+  },
+  "dependencies": {
+    "@remotion/bundler": "^4.0.532",
+    "@remotion/cli": "^4.0.532",
+    "@remotion/google-fonts": "^4.0.532",
+    "@remotion/renderer": "^4.0.532",
+    "@types/react": "^19.3.0",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "remotion": "^4.0.532",
+    "typescript": "^7.0.2",
+    "yaml": "^2.9.1"
+  }
+}

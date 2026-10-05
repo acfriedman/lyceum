@@ -1,0 +1,47 @@
+#!/usr/bin/env node
+// Starts a new video: a directory with a script.md template to fill in.
+//
+//   lyceum new <slug> "<Title>"
+//
+// Then write the script, narrate it, and run `lyceum scenes` to scaffold the scene components.
+
+import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+import { VIDEOS } from "./paths.mjs";
+const [slug, title = slug] = process.argv.slice(2);
+if (!slug || !/^[a-z0-9]+(-[a-z0-9]+)*$/.test(slug)) {
+  console.error('usage: lyceum new <kebab-slug> "<Title>"');
+  process.exit(2);
+}
+const dir = join(VIDEOS, slug);
+if (existsSync(dir)) {
+  console.error(`videos/${slug}/ already exists`);
+  process.exit(1);
+}
+mkdirSync(dir);
+const today = new Date().toISOString().slice(0, 10);
+writeFileSync(
+  join(dir, "script.md"),
+  `---
+title: ${JSON.stringify(title)}
+status: draft 1
+updated: ${today}
+# Written form → spoken form, applied only to the text sent to the voice.
+pronounce: {}
+sources: []
+---
+
+<!--
+Format: one \`## NN · id — Title\` per scene. \`> Visual:\` lines describe the animation; every other
+paragraph is narration, spoken in order. The narration is the only text sent to TTS, so it is
+written for the ear: no identifiers that read badly aloud, short sentences.
+-->
+
+## 01 · cold-open — Title
+
+> Visual: …
+
+Narration…
+`,
+);
+console.log(`videos/${slug}/script.md created`);

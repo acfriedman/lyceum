@@ -6,7 +6,8 @@
 //
 // Each clip is cached under .cache/narration by a hash of everything that shapes the audio (provider,
 // voice, model, settings, spoken text), so re-running after a script edit only pays for the scenes
-// whose narration changed. Keys (OPENAI_KEY or OPENAI_API_KEY, ELEVEN_LABS_KEY or ELEVENLABS_API_KEY) come from the environment or from the
+// whose narration changed. Every clip is brought to the same loudness (LOUDNESS), so separate takes
+// don't jump in volume. Keys (OPENAI_KEY or OPENAI_API_KEY, ELEVEN_LABS_KEY or ELEVENLABS_API_KEY) come from the environment or from the
 // nearest .env walking up from the project.
 //
 // The default voice is OpenAI's gpt-4o-mini-tts "cedar". A script picks another with frontmatter
@@ -18,7 +19,7 @@
 // entries that apply to every script; a script's own frontmatter wins.
 
 import { createHash } from "node:crypto";
-import { execFile, execFileSync } from "node:child_process";
+import { execFile, execFileSync, spawnSync } from "node:child_process";
 import { withSlot } from "./slots.mjs";
 import { promisify } from "node:util";
 import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -48,9 +49,10 @@ const VOICES = {
       "Voice: a calm, curious explainer narrator in the style of 3Blue1Brown. Tone: warm, intelligent, " +
       "unhurried. Pacing: measured, with brief natural pauses at commas and full stops; slightly slower " +
       "on key ideas. Never rushed, never theatrical.",
-    // Voiced paragraph by paragraph, with a trimmed sentinel, each checked against the script
-    // (see synthesizeOpenAI).
-    chunk: "paragraph+sentinel@4",
+    // Voiced paragraph by paragraph, with a trimmed sentinel, each checked against the script and
+    // loudness-normalized (see synthesizeOpenAI). Bump the version when that processing changes: the
+    // raw speech is cached apart (see openAISpeech), so it re-processes clips without re-billing them.
+    chunk: "paragraph+sentinel+loudness@5",
   },
   elevenlabs: {
     provider: "elevenlabs",
@@ -167,6 +169,36 @@ async function synthesizeElevenLabs(text, voice, mp3Path) {
   return wordsFromAlignment(body.alignment);
 }
 
+// The level every clip is brought to: integrated loudness in LUFS (EBU R128's reference, about where
+// the default voice already sits, so the gain stays small), and the true peak, in dBTP, no gain may
+// push past.
+const LOUDNESS = { lufs: -23, peak: -1 };
+
+/**
+ * The filter that brings a clip to LOUDNESS: it measures the clip (with `outputArgs`, e.g. a `-t`
+ * cut, applied as they will be), then applies one constant gain. Nothing is compressed or reshaped;
+ * a clip whose peaks can't take the full gain just stays a little quieter.
+ */
+function loudnessFilter(path, outputArgs = []) {
+  const { stderr } = spawnSync(
+    "ffmpeg",
+    ["-hide_banner", "-nostats", "-i", path, ...outputArgs, "-af", "loudnorm=print_format=json", "-f", "null", "-"],
+    { encoding: "utf8" },
+  );
+  const start = stderr.lastIndexOf("{");
+  const measured = JSON.parse(stderr.slice(start, stderr.indexOf("}", start) + 1));
+  const loudness = Number(measured.input_i);
+  const peak = Number(measured.input_tp);
+  // Too short or too quiet to measure: leave the clip as it is.
+  if (!Number.isFinite(loudness) || !Number.isFinite(peak)) return "anull";
+  return `volume=${Math.min(LOUDNESS.lufs - loudness, LOUDNESS.peak - peak).toFixed(2)}dB`;
+}
+
+/** Writes a copy of a clip brought to LOUDNESS. */
+function normalizeLoudness(inPath, outPath) {
+  execFileSync("ffmpeg", ["-y", "-loglevel", "error", "-i", inPath, "-af", loudnessFilter(inPath), "-b:a", "160k", outPath]);
+}
+
 // Seconds of silence between a scene's paragraphs when they're voiced separately.
 const PARAGRAPH_GAP = 0.45;
 const ATTEMPTS = 3;
@@ -198,8 +230,8 @@ async function openAISpeech(voice, input, attempt) {
 /**
  * OpenAI voices a scene one paragraph at a time (all paragraphs concurrently), each with SENTINEL
  * appended. Each paragraph is aligned against its real text, cut between its last word and the
- * sentinel, checked for skipped words (and retried), then the paragraphs are joined with a short
- * pause.
+ * sentinel, checked for skipped words (and retried), and brought to LOUDNESS (each is a separate take,
+ * so they differ), then the paragraphs are joined with a short pause.
  */
 async function synthesizeOpenAI(text, voice, mp3Path, label) {
   const paragraphs = text.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean);
@@ -223,13 +255,17 @@ async function synthesizeOpenAI(text, voice, mp3Path, label) {
   return joinParts(parts, mp3Path);
 }
 
-/** Trims a clip just after its last scripted word: halfway to the sentinel, when it was spoken. */
+/**
+ * Trims a clip just after its last scripted word (halfway to the sentinel, when it was spoken) and
+ * brings what's left to LOUDNESS.
+ */
 function cutAfterLastWord(rawPath, outPath, { words, tail }) {
   const lastEnd = words.at(-1).e;
   const cut = Math.min(probeDuration(rawPath), tail == null ? lastEnd + 0.3 : Math.max(lastEnd + 0.08, (lastEnd + tail) / 2));
+  const trim = ["-t", cut.toFixed(3)];
   execFileSync("ffmpeg", [
-    "-y", "-loglevel", "error", "-i", rawPath, "-t", cut.toFixed(3),
-    "-af", `afade=t=out:st=${Math.max(0, cut - 0.06).toFixed(3)}:d=0.06`, "-b:a", "160k", outPath,
+    "-y", "-loglevel", "error", "-i", rawPath, ...trim,
+    "-af", `${loudnessFilter(rawPath, trim)},afade=t=out:st=${Math.max(0, cut - 0.06).toFixed(3)}:d=0.06`, "-b:a", "160k", outPath,
   ]);
 }
 
@@ -356,14 +392,18 @@ async function main() {
         console.log(`  cached    ${scene.id}`);
       }
 
+      // Every provider's clip is brought to LOUDNESS beside the cached one, so the level can change
+      // without voicing anything again.
+      const leveled = join(CACHE, `${hash}.lufs${-LOUDNESS.lufs}.mp3`);
+      if (!existsSync(leveled)) normalizeLoudness(cachedMp3, leveled);
       const audio = `${video}/${scene.id}.mp3`;
-      copyFileSync(cachedMp3, join(publicRoot, audio));
+      copyFileSync(leveled, join(publicRoot, audio));
       return {
         id: scene.id,
         title: scene.title,
         audio,
         hash,
-        duration: probeDuration(cachedMp3),
+        duration: probeDuration(leveled),
         words: JSON.parse(readFileSync(cachedWords, "utf8")),
       };
     }),

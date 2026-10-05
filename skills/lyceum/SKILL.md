@@ -112,6 +112,9 @@ This writes `narration.json` (durations, word timings, timeline) and `captions.s
   environment or the nearest `.env` at or above the project.
 - **Voice:** a script can pin a voice in frontmatter: `voice: { provider: elevenlabs }`, or
   `{ id: marin, instructions: … }` for another OpenAI voice.
+- **Loudness:** every clip (and, for OpenAI, every paragraph) is brought to −23 LUFS with one constant
+  gain, so separate takes don't jump in volume. Pitch and pacing still vary from take to take; this doesn't
+  touch them.
 
 Why the OpenAI path is more involved:
 - **Truncation:** gpt-4o-mini-tts often drops an input's last sentence. So Lyceum:

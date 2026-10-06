@@ -9,7 +9,7 @@
 // cue fails the render instead of drifting silently.
 
 import { createContext, useContext } from "react";
-import { useCurrentFrame, useVideoConfig } from "remotion";
+import { useClock } from "./clock";
 
 export type Word = { w: string; s: number; e: number };
 
@@ -46,8 +46,7 @@ export type CueOptions = {
  * narration ends. Frame 0 is the lead-in before the first word.
  */
 export function useScene() {
-  const frame = useCurrentFrame();
-  const { fps } = useVideoConfig();
+  const { frame, fps } = useClock();
   const timing = useContext(SceneContext);
   if (!timing) throw new Error("useScene() outside a scene");
 

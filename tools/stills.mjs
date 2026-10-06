@@ -2,18 +2,16 @@
 // Renders frames of one scene into a single contact sheet, so layout and timing can be checked
 // without rendering video (and by a reviewer that can read an image but can't watch one).
 //
-//   lyceum stills <video> <scene-id> [--every <seconds> | --at <s1,s2,…>]
+//   lyceum stills <video> <scene-id> [--every <seconds> | --at <s1,s2,…>] [--engine remotion|lyceum]
 //
 // Output: .cache/work/<video>/stills/<scene-id>.png. The individual frames are temporary.
 
-import { renderStill, selectComposition } from "@remotion/renderer";
 import { holdSlot } from "./slots.mjs";
-import { bundleProject } from "./bundle.mjs";
 import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
-import { ROOT, videoSlug, workDir } from "./paths.mjs";
+import { ROOT, videoDir, videoSlug, workDir } from "./paths.mjs";
 
 const argv = process.argv.slice(2);
 const opt = (name) => {
@@ -21,26 +19,44 @@ const opt = (name) => {
   return i < 0 ? undefined : argv[i + 1];
 };
 const [videoArg, scene] = argv;
-if (!videoArg || !scene || scene.startsWith("--")) {
-  console.error("usage: lyceum stills <video> <scene-id> [--every <s> | --at <s1,s2>]");
+const engine = opt("engine") ?? "remotion";
+if (!videoArg || !scene || scene.startsWith("--") || !["remotion", "lyceum"].includes(engine)) {
+  console.error("usage: lyceum stills <video> <scene-id> [--every <s> | --at <s1,s2>] [--engine remotion|lyceum]");
   process.exit(2);
 }
 const video = videoSlug(videoArg);
+const narration = JSON.parse(readFileSync(join(videoDir(video), "narration.json"), "utf8"));
+const timing = narration.scenes.find((s) => s.id === scene);
+if (!timing) {
+  console.error(`${video}: no scene "${scene}"`);
+  process.exit(2);
+}
 
-await holdSlot("remotion");
-const serveUrl = await bundleProject();
-const composition = await selectComposition({ serveUrl, id: `${video}--${scene}` });
-const fps = composition.fps;
-const last = composition.durationInFrames - 1;
+const fps = narration.fps;
+const last = timing.frames - 1;
 const every = Number(opt("every") ?? 4);
 const frames = opt("at")
   ? opt("at").split(",").map((s) => Math.min(last, Math.round(Number(s) * fps)))
   : Array.from({ length: Math.floor(last / (every * fps)) + 1 }, (_, i) => Math.round(i * every * fps));
 
+await holdSlot("remotion");
 const tmp = mkdtempSync(join(tmpdir(), "explainer-stills-"));
 try {
-  for (const [i, frame] of frames.entries()) {
-    await renderStill({ composition, serveUrl, frame, output: join(tmp, `${String(i).padStart(3, "0")}.png`), scale: 0.5 });
+  const still = (i) => join(tmp, `${String(i).padStart(3, "0")}.png`);
+  if (engine === "lyceum") {
+    const { openScene } = await import("./chrome.mjs");
+    const page = await openScene(video, scene, { scale: 0.5 });
+    try {
+      for (const [i, frame] of frames.entries()) writeFileSync(still(i), await page.frame(frame, "png"));
+    } finally {
+      await page.close();
+    }
+  } else {
+    const { renderStill, selectComposition } = await import("@remotion/renderer");
+    const { bundleProject } = await import("./bundle.mjs");
+    const serveUrl = await bundleProject();
+    const composition = await selectComposition({ serveUrl, id: `${video}--${scene}` });
+    for (const [i, frame] of frames.entries()) await renderStill({ composition, serveUrl, frame, output: still(i), scale: 0.5 });
   }
   const dir = join(workDir(video), "stills");
   mkdirSync(dir, { recursive: true });

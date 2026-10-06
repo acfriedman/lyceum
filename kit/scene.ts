@@ -5,4 +5,4 @@ export * from "./anim";
 export * from "./cue";
 export * from "./primitives";
 export * from "./theme";
-export type { Narration, SceneMap } from "./Video";
+export type { Narration, SceneMap } from "./stage";

@@ -2,7 +2,9 @@
 // import their paths from here, so the layout is described once.
 //
 // In the Lyceum package (ENGINE):
-//   kit/        the Remotion side: timing (cue), primitives, theme, the Video layout
+//   kit/        what scenes are drawn with: timing (cue), primitives, theme, the stage, and the pages
+//               that draw it (Lyceum's renderer, and Remotion's compositions)
+//   studio/     the preview app `lyceum studio` serves
 //   tools/      these command-line tools
 //   fonts/      fonts the kit loads
 //
@@ -28,6 +30,7 @@ export const CONFIG_FILE = "lyceum.config.json";
 export const ENGINE = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 export const KIT = join(ENGINE, "kit");
 export const ENTRY = join(KIT, "index.ts");
+export const STUDIO = join(ENGINE, "studio");
 
 /** The machine-wide Lyceum directory: `LYCEUM_HOME`, else the platform's cache directory. */
 export const HOME =

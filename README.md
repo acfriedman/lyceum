@@ -105,8 +105,8 @@ explainers/
 | `lyceum scenes <slug>` | scaffolds scene components and writes per-scene briefs, word timings and the kit API to `.cache/work/<slug>/` |
 | `lyceum stills <slug> <scene> --at 1,4,8` | a contact sheet of frames, to check layout and timing without video |
 | `lyceum render <slug> [--scene <id> [--draft]]` | renders stale scenes, then joins them with narration and subtitles |
-| `… --engine lyceum` (stills, render) | draws frames with Lyceum's own renderer instead of Remotion (experimental: same pixels, faster) |
-| `lyceum studio` | Remotion Studio, to scrub every video with audio |
+| `lyceum studio [--port <n>] [--no-open]` | Remotion Studio, to scrub every video with audio |
+| `… --engine lyceum` (stills, render, studio) | Lyceum's own renderer and studio instead of Remotion (experimental). Renders come out the same, faster; the studio plays scenes with their narration and a transcript you can click to jump to a word |
 | `lyceum typecheck` | type-checks the scenes |
 
 A script is one `## NN · id — Title` per scene, then `> Visual:` lines (the animation brief), then

@@ -1,0 +1,96 @@
+/* Lyceum Studio, in the kit's palette. Every element is border-box, as on the page frames are rendered
+   in, so scenes lay out here exactly as they render. */
+
+* { box-sizing: border-box; }
+html, body, #root { height: 100%; margin: 0; }
+body {
+  overflow: hidden;
+  background: #0e0e10;
+  color: #ececec;
+  font: 13px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+button { font: inherit; color: inherit; }
+.mono { font-family: "JetBrains Mono", Menlo, monospace; font-variant-numeric: tabular-nums; }
+
+.studio { display: grid; grid-template-columns: 272px minmax(0, 1fr); height: 100%; }
+
+/* Sidebar */
+.sidebar { overflow-y: auto; padding-bottom: 16px; background: #141417; border-right: 1px solid #26262c; }
+.brand {
+  position: sticky; top: 0; z-index: 1;
+  padding: 16px 18px 10px;
+  background: #141417;
+  font-family: "CMU Serif", Georgia, serif; font-size: 20px;
+}
+.brand span { color: #8a8a8f; }
+.video { margin-top: 8px; }
+.entry {
+  display: flex; align-items: baseline; gap: 10px;
+  width: 100%; padding: 5px 18px;
+  border: 0; background: none; color: #a9a9b0;
+  text-align: left; cursor: pointer;
+}
+.entry:hover { background: #1b1b20; color: #ececec; }
+.entry.whole { justify-content: space-between; color: #ececec; font-weight: 600; }
+.entry.current { background: #18262a; color: #ececec; box-shadow: inset 2px 0 #58c4dd; }
+.entry .num, .entry .len { flex: none; font-size: 11.5px; font-weight: 400; color: #6f6f76; }
+.entry .label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* The stage */
+.main { display: grid; grid-template-rows: minmax(0, 1fr) auto; min-width: 0; min-height: 0; }
+.viewer { display: flex; align-items: center; justify-content: center; min-height: 0; padding: 24px; overflow: hidden; }
+.frame { position: relative; flex: none; overflow: hidden; box-shadow: 0 0 0 1px #26262c, 0 18px 50px rgba(0, 0, 0, 0.55); }
+.canvas { position: absolute; top: 0; left: 0; overflow: hidden; transform-origin: 0 0; }
+.fault {
+  position: absolute; inset: 0;
+  padding: 72px 96px;
+  background: rgba(14, 14, 16, 0.94); color: #fc6255;
+  font: 34px/1.5 "JetBrains Mono", Menlo, monospace; white-space: pre-wrap;
+}
+.fault small { display: block; margin-top: 24px; color: #8a8a8f; font-size: 26px; }
+
+/* Dock: transport, scrubber, transcript */
+.dock { padding: 12px 20px 12px; background: #141417; border-top: 1px solid #26262c; }
+.transport { display: flex; align-items: center; gap: 10px; }
+.button {
+  display: grid; place-items: center; flex: none;
+  width: 32px; height: 32px;
+  border: 0; border-radius: 50%; background: #23232a;
+  cursor: pointer;
+}
+.button:hover { background: #2d2d35; }
+.button.play { background: #ececec; color: #0e0e10; }
+.button.play:hover { background: #fff; }
+.button svg { width: 15px; height: 15px; fill: currentColor; }
+.now { flex: 1; min-width: 0; margin-left: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; }
+.now .num { margin-right: 10px; color: #8a8a8f; font-size: 12px; }
+.time { flex: none; color: #8a8a8f; font-size: 12px; white-space: nowrap; }
+.time b { color: #ececec; font-weight: 500; }
+
+.scrubber {
+  position: relative;
+  height: 30px; margin: 12px 0 10px;
+  border-radius: 5px; background: #1b1b20;
+  cursor: pointer; touch-action: none; user-select: none;
+}
+.span { position: absolute; top: 0; bottom: 0; overflow: hidden; border-left: 1px solid #0e0e10; }
+.span:first-child { border-left: 0; }
+.span .tag { position: absolute; top: 3px; left: 6px; color: #6f6f76; font-size: 10.5px; }
+.tick { position: absolute; bottom: 4px; width: 1px; height: 7px; background: #44444c; pointer-events: none; }
+.played { position: absolute; top: 0; bottom: 0; left: 0; border-radius: 5px 0 0 5px; background: rgba(88, 196, 221, 0.16); pointer-events: none; }
+.playhead { position: absolute; top: -4px; bottom: -4px; width: 2px; margin-left: -1px; border-radius: 1px; background: #58c4dd; pointer-events: none; }
+
+.transcript {
+  max-height: 84px; overflow-y: auto;
+  color: #6f6f76;
+  font-family: "CMU Serif", Georgia, serif; font-size: 16.5px; line-height: 1.65;
+}
+.word { padding: 0 1px; border-radius: 3px; cursor: pointer; }
+.word.said { color: #c9c9cf; }
+.word:hover { background: #26262c; color: #ececec; }
+.word.saying { background: #ffe873; color: #0e0e10; }
+.keys { margin-top: 8px; color: #5c5c63; font-size: 11.5px; }
+.keys kbd { color: #8a8a8f; font: inherit; }
+
+.empty { display: grid; place-items: center; height: 100%; padding: 24px; color: #8a8a8f; text-align: center; }

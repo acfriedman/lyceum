@@ -2,7 +2,8 @@
 // import their paths from here, so the layout is described once.
 //
 // In the Lyceum package (ENGINE):
-//   kit/        the Remotion side: timing (cue), primitives, theme, the Video layout
+//   kit/        what scenes are drawn with: timing (cue), primitives, theme, the stage, and the pages
+//               that draw it (Lyceum's renderer, and Remotion's compositions)
 //   tools/      these command-line tools
 //   fonts/      fonts the kit loads
 //
@@ -11,8 +12,9 @@
 //   videos/index.ts         the registry of videos the compositions are built from
 //   videos/<video>/         script.md, scenes/, and the generated narration.json + captions.srt
 //   videos/<video>/dist/    the deliverables: <video>.mp4, <video>.srt, scenes/<scene>.mp4 (gitignored)
-//   .cache/                 everything regenerable (gitignored): TTS clips, the Remotion public
-//                           directory, and per-video review scratch (word timings, contact sheets)
+//   .cache/                 everything regenerable (gitignored): TTS clips, the public directory
+//                           renders read narration from, and per-video review scratch (word timings,
+//                           contact sheets)
 //
 // Shared by every project on the machine (HOME): the Whisper venv and the slot locks that cap how
 // much memory-hungry work runs at once.
@@ -67,7 +69,8 @@ export const VIDEOS = join(ROOT, CONFIG.videos);
 export const CACHE = join(ROOT, CONFIG.cache);
 export const REGISTRY = join(VIDEOS, "index.ts");
 
-/** Remotion's public directory: narration audio plus a copy of the fonts. Regenerable. */
+/** The public directory: narration audio, which renders read, plus a copy of the fonts for Remotion.
+ *  Regenerable. */
 export const PUBLIC = join(CACHE, "public");
 
 /** A video's source directory, from its slug or a path to it. */

@@ -1,8 +1,13 @@
 import React from "react";
-import { Composition, Folder } from "remotion";
-import "./fonts";
+import { Composition, Folder, continueRender, delayRender, staticFile } from "remotion";
+import { loadFonts } from "./fonts";
 import { SingleScene, Video } from "./Video";
 import { videos } from "@lyceum/videos";
+
+const fonts = delayRender("Loading fonts");
+loadFonts((file) => staticFile(`fonts/${file}`))
+  .catch((error) => console.error(error))
+  .finally(() => continueRender(fonts));
 
 // Every video is one full composition plus one composition per scene (in a folder), so a single
 // scene can be previewed or rendered on its own.

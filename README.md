@@ -3,6 +3,7 @@
 Explainer videos made of animated, narrated diagrams, written as a script and built by your coding agent.
 
 ## Watch
+🎵 Turn sound on
 
 https://github.com/user-attachments/assets/e58e9af7-205d-4981-9681-8e6d1ee16ba1
 

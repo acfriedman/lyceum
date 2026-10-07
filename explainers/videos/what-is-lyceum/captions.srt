@@ -1,0 +1,163 @@
+1
+00:00:00,600 --> 00:00:02,400
+You understand something well.
+
+2
+00:00:02,660 --> 00:00:06,360
+How a system fits together, or why a design went the way it did.
+
+3
+00:00:06,700 --> 00:00:09,780
+In your head, it's a picture, and the picture moves.
+
+4
+00:00:10,506 --> 00:00:12,686
+Then you have to explain it.
+
+5
+00:00:12,946 --> 00:00:15,706
+You draw it on a whiteboard, and it gets erased.
+
+6
+00:00:16,166 --> 00:00:19,626
+You write a document, and the picture flattens into paragraphs.
+
+7
+00:00:20,106 --> 00:00:23,486
+You book a meeting, and next month you book it again.
+
+8
+00:00:25,500 --> 00:00:29,160
+The clearest explanations you've ever watched do something simple.
+
+9
+00:00:29,500 --> 00:00:32,760
+A diagram builds on screen while a voice explains it.
+
+10
+00:00:33,040 --> 00:00:36,940
+Each piece appears the moment it's mentioned, so you always know where to look.
+
+11
+00:00:37,690 --> 00:00:44,090
+Those videos take days to make, with animation software and a microphone and a lot of
+
+12
+00:00:44,090 --> 00:00:44,450
+patience.
+
+13
+00:00:44,750 --> 00:00:48,570
+So almost nobody makes them for the things they explain at work.
+
+14
+00:00:50,567 --> 00:00:55,167
+With Lyceum you write it instead, as one script in plain text.
+
+15
+00:00:55,567 --> 00:00:59,727
+Each scene says two things: what's on screen, and what's said.
+
+16
+00:01:00,477 --> 00:01:04,057
+There's no timeline to drag and no keyframes to set.
+
+17
+00:01:04,257 --> 00:01:06,217
+Your coding agent does the rest.
+
+18
+00:01:08,233 --> 00:01:11,993
+Ask it for a video about your caching layer, your onboarding flow,
+
+19
+00:01:12,193 --> 00:01:13,213
+or your new pricing.
+
+20
+00:01:13,513 --> 00:01:18,353
+It reads the real sources first: the code, the design documents, the notes.
+
+21
+00:01:18,853 --> 00:01:22,113
+It drafts the script, and then it stops, so you can review it.
+
+22
+00:01:22,863 --> 00:01:26,583
+Once you're happy, it gives the script a voice, builds every scene,
+
+23
+00:01:26,883 --> 00:01:30,263
+checks every scene by looking at stills from it, and renders the video.
+
+24
+00:01:32,267 --> 00:01:35,627
+Every piece of the picture is tied to the words that introduce it.
+
+25
+00:01:36,127 --> 00:01:38,847
+When I say cache, the cache appears.
+
+26
+00:01:39,327 --> 00:01:42,007
+And when I say database, there it is.
+
+27
+00:01:42,667 --> 00:01:45,427
+Edit a sentence, and the animation follows it.
+
+28
+00:01:45,927 --> 00:01:47,367
+Nothing needs retiming.
+
+29
+00:01:48,117 --> 00:01:50,377
+Reviewing feels like reviewing a document.
+
+30
+00:01:50,857 --> 00:01:54,897
+Watch the video, point at a moment, and ask for a change.
+
+31
+00:01:55,537 --> 00:01:57,197
+Only that scene is rebuilt.
+
+32
+00:01:59,200 --> 00:02:02,140
+An engineer can explain a system to a new teammate.
+
+33
+00:02:02,460 --> 00:02:04,980
+A designer can walk through why a flow works.
+
+34
+00:02:05,400 --> 00:02:08,820
+A product manager can show how a feature behaves before it ships.
+
+35
+00:02:09,360 --> 00:02:12,820
+And anyone can tell a postmortem in the order things happened.
+
+36
+00:02:13,570 --> 00:02:17,830
+Because the agent works from your sources, the video says what's true,
+
+37
+00:02:18,050 --> 00:02:20,450
+and the script lists where every claim came from.
+
+38
+00:02:22,467 --> 00:02:26,887
+Everything you just watched started as a script, about four hundred words long.
+
+39
+00:02:27,147 --> 00:02:29,127
+The voice cost a few cents.
+
+40
+00:02:29,877 --> 00:02:31,657
+Lyceum is free and open source.
+
+41
+00:02:32,037 --> 00:02:35,977
+Install it, ask your agent for a video, and share the picture in your head.

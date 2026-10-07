@@ -1,0 +1,3 @@
+.cache/
+videos/*/dist/
+node_modules/

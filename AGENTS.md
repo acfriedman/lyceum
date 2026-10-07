@@ -22,6 +22,8 @@ kit/                what scenes import as "#kit": timing (cue.tsx), the frame cl
 fonts/              CMU Serif and JetBrains Mono (SIL Open Font License)
 skills/lyceum/      the agent skill (Agent Skills format: SKILL.md + references/)
 .claude-plugin/     packages the skill as a Claude Code plugin and marketplace
+explainers/         a Lyceum project of videos about Lyceum, made with this checkout (`file:..`): the
+                    README's video. Not part of the published package
 ```
 
 ## How a project and the package meet

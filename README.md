@@ -1,6 +1,6 @@
 # Lyceum
 
-Explainer videos made of animated, narrated diagrams, written as a script and built by your coding agent.
+Explainer videos made of animated, narrated diagrams, written like a screenplay and built by your coding agent.
 
 ## Watch
 🎵 Turn sound on
@@ -12,10 +12,11 @@ script and scenes are in [`explainers/`](explainers/videos/what-is-lyceum/script
 
 ## How it works
 
-A video starts as one `script.md`. Lyceum voices each scene with text-to-speech and records when every
-word is spoken. Each scene is a React component that times its animation to those words with
-`cue("spoken words")`, and Lyceum draws it frame by frame in headless Chrome. An incremental renderer
-joins the scenes into an MP4 with subtitles. A bundled agent skill drives the whole loop:
+A video starts as one `script.md`, a screenplay in Markdown: for each scene, what's on screen and what's
+said. Lyceum voices each scene with text-to-speech and records when every word is spoken. Each scene is a
+React component that times its animation to those words with `cue("spoken words")`, and Lyceum draws it
+frame by frame in headless Chrome. An incremental renderer joins the scenes into an MP4 with subtitles. A
+bundled agent skill drives the whole loop:
 - research the topic;
 - write the script, and stop for your review;
 - narrate;

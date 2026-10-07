@@ -126,7 +126,7 @@ every claim came from.
 > Visual: The frame pulls back to reveal this video's own script.md, scrolling past the scene headings
 > 01 to 07 and stopping on this one. On "a few cents", a small price tag appears. On "free and open
 > source", the script slides away and the title "Lyceum" writes on with the tagline "Explainer videos
-> made of animated, narrated diagrams, written as a script and built by your coding agent." Below it,
+> made of animated, narrated diagrams, written like a screenplay and built by your coding agent." Below it,
 > the opening's request → cache → database diagram draws itself once more, and the dot travels through
 > it on "the picture in your head".
 

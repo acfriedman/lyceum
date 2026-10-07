@@ -104,7 +104,7 @@ export const ThisVideo: React.FC = () => {
           transform: `translateY(${(1 - prog(frame, openSource, 0.6, fps)) * 12}px)`,
         }}
       >
-        Explainer videos made of animated, narrated diagrams, written as a script and built by your coding agent.
+        Explainer videos made of animated, narrated diagrams, written like a screenplay and built by your coding agent.
       </div>
       <Text x={960} y={580} size={30} font="mono" color={C.dim} anchor="center" at={install} reveal="fade">
         github.com/acfriedman/lyceum

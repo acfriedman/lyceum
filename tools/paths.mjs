@@ -2,7 +2,8 @@
 // import their paths from here, so the layout is described once.
 //
 // In the Lyceum package (ENGINE):
-//   kit/        the Remotion side: timing (cue), primitives, theme, the Video layout
+//   kit/        what scenes are drawn with: timing (cue), primitives, theme, the stage, and the pages
+//               that draw it (Lyceum's renderer, and Remotion's compositions)
 //   tools/      these command-line tools
 //   fonts/      fonts the kit loads
 //

@@ -12,12 +12,13 @@ the engine.
 
 ```
 bin/lyceum.mjs      the `lyceum` command: dispatches to tools/
-tools/              one file per command, plus paths.mjs (the layout, described once), bundle.mjs
-                    (Remotion bundling and aliases), slots.mjs (machine-wide memory caps), script.mjs
-                    (script.md parsing), align.py (Whisper word alignment)
-kit/                the Remotion side scenes import as "#kit": timing (cue.tsx), primitives, theme,
-                    the Video and per-scene compositions
-fonts/              CMU Serif (SIL Open Font License)
+tools/              one file per command, plus paths.mjs (the layout, described once), slots.mjs
+                    (machine-wide memory caps), script.mjs (script.md parsing), align.py (Whisper word
+                    alignment), chrome.mjs (Lyceum's renderer: frames drawn in headless Chrome) and
+                    bundle.mjs (Remotion bundling and aliases)
+kit/                what scenes import as "#kit": timing (cue.tsx), the frame clock, primitives, theme
+                    and the stage, plus the page Lyceum's renderer draws in and Remotion's compositions
+fonts/              CMU Serif and JetBrains Mono (SIL Open Font License)
 skills/lyceum/      the agent skill (Agent Skills format: SKILL.md + references/)
 .claude-plugin/     packages the skill as a Claude Code plugin and marketplace
 ```
@@ -26,10 +27,11 @@ skills/lyceum/      the agent skill (Agent Skills format: SKILL.md + references/
 
 - **Scenes** import `"#kit"`, which the project's `package.json` `imports` field maps to `lyceum/kit`, the
   package's `kit/scene.ts`.
-- **The registry:** the kit's Root imports the project's `videos/index.ts` as `"@lyceum/videos"`, an alias
-  set in `tools/bundle.mjs`. The project's `tsconfig.json` sets the same alias in `paths`.
-- **Single copies:** `react`, `react-dom` and `remotion` are aliased to one copy, so the kit and the
-  scenes never load two.
+- **The registry:** the kit imports the project's `videos/index.ts` as `"@lyceum/videos"`, an alias set in
+  `tools/chrome.mjs` (and in `tools/bundle.mjs` for Remotion). The project's `tsconfig.json` sets the
+  same alias in `paths`.
+- **Single copies:** `react` and `react-dom` (and `remotion`, under Remotion) resolve to one copy, so the
+  kit and the scenes never load two.
 - **Paths:** `tools/paths.mjs` finds the project (the nearest `lyceum.config.json`, or `LYCEUM_PROJECT`).
   Per-project caches live in the project's `.cache/`. Machine-wide state (the Whisper venv, slot locks)
   lives in the Lyceum home directory (`LYCEUM_HOME`, else `~/Library/Caches/lyceum` or

@@ -4,9 +4,8 @@ Narrated, 3Blue1Brown-style explainer videos, written as a script and built by y
 
 A video starts as one `script.md`. Lyceum voices each scene with text-to-speech and records when every
 word is spoken. Each scene is a React component that times its animation to those words with
-`cue("spoken words")`, drawn frame by frame in headless Chrome by [Remotion](https://www.remotion.dev) or by
-Lyceum's own renderer. An incremental renderer joins the scenes into an MP4 with subtitles. A bundled
-agent skill drives the whole loop:
+`cue("spoken words")`, and Lyceum draws it frame by frame in headless Chrome. An incremental renderer
+joins the scenes into an MP4 with subtitles. A bundled agent skill drives the whole loop:
 - research the topic;
 - write the script, and stop for your review;
 - narrate;
@@ -21,9 +20,8 @@ code and systems. Nothing in it is specific to code, though.
 ## Requirements
 
 - **Node 20+** and **ffmpeg** (with `ffprobe`) on your path.
-- **Disk space for a headless Chrome,** which rendering downloads on first use (about 95 MB, 190 MB
-  unpacked). Remotion keeps a copy in each project's `node_modules`; `--engine lyceum` keeps one per
-  machine, in Lyceum's cache directory.
+- **Disk space for a headless Chrome,** which the first render downloads (about 95 MB, 190 MB unpacked):
+  Google's Chrome for Testing, pinned, once per machine, into Lyceum's cache directory.
 - **A voice:**
   - an OpenAI API key (default voice, about $0.15 per 10-minute video); or
   - an ElevenLabs key; or
@@ -36,14 +34,8 @@ code and systems. Nothing in it is specific to code, though.
 
 ## Licensing
 
-- **Lyceum** is [MIT](LICENSE). The bundled CMU Serif and JetBrains Mono fonts are under the SIL Open
-  Font License.
-- **Remotion,** Lyceum's default renderer, has [its own license](https://www.remotion.dev/license):
-  - free for individuals, non-profits and companies of up to three people;
-  - larger companies need a Remotion Company License.
-
-  That applies to you if you use Lyceum. `--engine lyceum` renders without running any Remotion code,
-  but Remotion is still installed with Lyceum, so check its license before using Lyceum at work.
+Lyceum is [MIT](LICENSE). Its dependencies are under permissive licenses (MIT, Apache 2.0, ISC and BSD),
+and the bundled CMU Serif and JetBrains Mono fonts under the SIL Open Font License.
 
 ## Getting started
 
@@ -111,8 +103,6 @@ explainers/
 | `lyceum scenes <slug>` | scaffolds scene components and writes per-scene briefs, word timings and the kit API to `.cache/work/<slug>/` |
 | `lyceum stills <slug> <scene> --at 1,4,8` | a contact sheet of frames, to check layout and timing without video |
 | `lyceum render <slug> [--scene <id> [--draft]]` | renders stale scenes, then joins them with narration and subtitles |
-| `… --engine lyceum` (stills, render) | renders with Lyceum's own renderer instead of Remotion: identical frames, faster (a contact sheet in under a second) |
-| `lyceum studio` | Remotion Studio, to scrub every video with audio |
 | `lyceum typecheck` | type-checks the scenes |
 
 A script is one `## NN · id — Title` per scene, then `> Visual:` lines (the animation brief), then

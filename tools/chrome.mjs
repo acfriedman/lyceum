@@ -11,9 +11,8 @@ import { createRequire } from "node:module";
 import { basename, extname, join } from "node:path";
 import { ENGINE, HOME, KIT, REGISTRY, ROOT, videoDir } from "./paths.mjs";
 
-/** The Chrome for Testing build that draws frames (the one Remotion 4.0.533 was tested against, so the
- *  two renderers can be compared pixel for pixel). Text and filters can come out differently in another
- *  build, so render.mjs fingerprints it. */
+/** The Chrome for Testing build that draws frames, pinned: text and filters can come out differently in
+ *  another build, so render.mjs fingerprints it. */
 export const CHROME_BUILD = "149.0.7790.0";
 
 // Switches for drawing frames: the same pixels on every machine, and no throttling of the tabs that
@@ -45,8 +44,8 @@ const ARGS = [
 ];
 
 // The stage sits at the page's top-left corner, the video's size; screenshots clip to it. Every
-// element is border-box, as it was under Remotion (whose page injects the same rule): scenes were laid
-// out that way, and a bordered box drawn content-box would grow by its border.
+// element is border-box: scenes were laid out that way (under Remotion, whose page set the same rule),
+// and a bordered box drawn content-box would grow by its border.
 const HTML = `<!doctype html>
 <html><head><meta charset="utf-8"><style>
 * { box-sizing: border-box; }

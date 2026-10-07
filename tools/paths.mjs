@@ -2,14 +2,14 @@
 // import their paths from here, so the layout is described once.
 //
 // In the Lyceum package (ENGINE):
-//   kit/        what scenes are drawn with: timing (cue), primitives, theme, the stage, and the pages
-//               that draw it (Lyceum's renderer, and Remotion's compositions)
+//   kit/        what scenes are drawn with: timing (cue), primitives, theme, the stage, and the page
+//               the renderer draws them in
 //   tools/      these command-line tools
 //   fonts/      fonts the kit loads
 //
 // In a project (ROOT, the nearest directory holding lyceum.config.json):
 //   lyceum.config.json      the project's settings (see loadConfig)
-//   videos/index.ts         the registry of videos the compositions are built from
+//   videos/index.ts         the registry of videos, which renders look scenes up in
 //   videos/<video>/         script.md, scenes/, and the generated narration.json + captions.srt
 //   videos/<video>/dist/    the deliverables: <video>.mp4, <video>.srt, scenes/<scene>.mp4 (gitignored)
 //   .cache/                 everything regenerable (gitignored): TTS clips, the public directory
@@ -19,7 +19,7 @@
 // Shared by every project on the machine (HOME): the Whisper venv and the slot locks that cap how
 // much memory-hungry work runs at once.
 
-import { cpSync, existsSync, mkdirSync, readFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import { homedir, platform } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -29,7 +29,6 @@ export const CONFIG_FILE = "lyceum.config.json";
 /** The Lyceum package's own directory. */
 export const ENGINE = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 export const KIT = join(ENGINE, "kit");
-export const ENTRY = join(KIT, "index.ts");
 
 /** The machine-wide Lyceum directory: `LYCEUM_HOME`, else the platform's cache directory. */
 export const HOME =
@@ -69,8 +68,7 @@ export const VIDEOS = join(ROOT, CONFIG.videos);
 export const CACHE = join(ROOT, CONFIG.cache);
 export const REGISTRY = join(VIDEOS, "index.ts");
 
-/** The public directory: narration audio, which renders read, plus a copy of the fonts for Remotion.
- *  Regenerable. */
+/** The public directory: each video's narration clips, which renders read. Regenerable. */
 export const PUBLIC = join(CACHE, "public");
 
 /** A video's source directory, from its slug or a path to it. */
@@ -95,9 +93,8 @@ export function workDir(video) {
   return dir;
 }
 
-/** Makes sure the public directory exists and holds the fonts, and returns it. */
+/** Makes sure the public directory exists, and returns it. */
 export function preparePublic() {
   mkdirSync(PUBLIC, { recursive: true });
-  cpSync(join(ENGINE, "fonts"), join(PUBLIC, "fonts"), { recursive: true });
   return PUBLIC;
 }

@@ -1,12 +1,12 @@
 ---
 name: lyceum
-description: Make narrated, 3Blue1Brown-style explainer videos about code, systems or ideas with Lyceum (Remotion scenes timed to text-to-speech narration). Use when the user asks for an explainer video, a narrated walkthrough, a video series, or "help me understand X visually", and when they ask to revise, re-narrate, re-render or extend an existing Lyceum video.
+description: Make narrated, 3Blue1Brown-style explainer videos about code, systems or ideas with Lyceum (React scenes timed to text-to-speech narration). Use when the user asks for an explainer video, a narrated walkthrough, a video series, or "help me understand X visually", and when they ask to revise, re-narrate, re-render or extend an existing Lyceum video.
 ---
 
 # Lyceum: explainer videos
 
 A video is one `script.md`. Its narration is synthesized scene by scene, with a timestamp for every
-word. Every scene is a React component (Remotion) that times its animation to the spoken words with
+word. Every scene is a React component that times its animation to the spoken words with
 `cue("…")`. The output is an MP4 that teaches one thing: why it exists, the problem it solves, and how
 it works.
 
@@ -244,9 +244,8 @@ Follow the brief's delivery rules. Commit and push only when the user asks. Neve
   - `Svg` with `Arrow`, `Box` and `Line` (these three must be inside `<Svg>`);
   - `Node` (labelled box), `Card`, `Tape`, `Pill`.
   - Animation helpers: `prog` (manim smooth), `track` (keyframed values), `visibility`.
-- **Props:** Remotion serializes composition props, so scenes are looked up from `videos/index.ts` by
-  video id. Never pass components through props.
+- **No props:** a scene component takes none. The renderer finds each scene by its video and scene id
+  in `videos/index.ts`, which `lyceum scenes` maintains.
 - **Font quirks:**
   - JetBrains Mono draws `->` and `==` as ligatures, which matters when aligning by column.
   - `Card` text is 24 px and `Node`'s sub-label is smaller still. Put sub-labels in their own `Text`.
-- **Studio:** `npx lyceum studio [--port 3123 --no-open]` scrubs every video with its audio.

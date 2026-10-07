@@ -71,7 +71,7 @@ const before = JSON.stringify(pkg);
 pkg.type ??= "module";
 pkg.imports = { "#kit": "lyceum/kit", ...(pkg.imports ?? {}) };
 pkg.scripts = {
-  ...Object.fromEntries(["new", "narrate", "scenes", "stills", "render", "studio", "typecheck"].map((c) => [c, `lyceum ${c}`])),
+  ...Object.fromEntries(["new", "narrate", "scenes", "stills", "render", "typecheck"].map((c) => [c, `lyceum ${c}`])),
   ...(pkg.scripts ?? {}),
 };
 pkg.dependencies = { lyceum: "github:acfriedman/lyceum", ...(pkg.dependencies ?? {}) };
@@ -120,7 +120,7 @@ for (const name of updated) console.log(`  updated  ${name}`);
 if (!created.length && !updated.length) console.log("  nothing to do: this is already a Lyceum project");
 console.log(`
 Next:
-  npm install                       installs Lyceum and Remotion
+  npm install                       installs Lyceum
   npx lyceum skill link             gives your coding agent the skill that drives the workflow
   edit brief.md                     audience, ground truth, house rules
   npx lyceum new <slug> "<Title>"   then ask your agent to write the script`);

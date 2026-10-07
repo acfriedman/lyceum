@@ -4,18 +4,18 @@
 //   lyceum render <video>                     render stale scenes, then assemble the video
 //   lyceum render <video> --scene <id>        render one scene (if stale), e.g. as soon as it passes review
 //   lyceum render <video> --scene <id> --draft    a quick 720p preview of one scene
-//   … --engine lyceum                         draw the frames with Lyceum's renderer instead of Remotion
 //
 // Output: videos/<video>/dist/<video>.mp4 (captions as a soft subtitle track) and its .srt;
 // scenes in videos/<video>/dist/scenes/<id>.mp4, each with a .json fingerprint beside it.
 //
 // A scene is stale when its fingerprint changes: its own file, the non-scene files in its scenes/
 // directory (shared.tsx and helpers), the kit, its narration (audio, words, timeline), its number
-// and title, and the render settings (the engine among them). Rendering scenes as they pass review
-// means the final call only joins them. Each scene file carries its own audio, so it doubles as a
-// preview; the video's audio track is rebuilt from the narration clips, which is exact and keeps the
+// and title, and the render settings (the Chrome build among them). Rendering scenes as they pass
+// review means the final call only joins them. Each scene file carries its own audio, so it doubles as
+// a preview; the video's audio track is rebuilt from the narration clips, which is exact and keeps the
 // join a stream copy.
 
+import { CHROME_BUILD, openScene } from "./chrome.mjs";
 import { holdSlot } from "./slots.mjs";
 import { createHash } from "node:crypto";
 import { execFileSync, spawn } from "node:child_process";
@@ -25,8 +25,8 @@ import { cpus } from "node:os";
 import { join, relative } from "node:path";
 import { ENGINE, PUBLIC, ROOT, distDir, videoDir, videoSlug, workDir } from "./paths.mjs";
 
-// Bump when the render settings or the way scenes are assembled change, to invalidate every scene.
-const SETTINGS = { pipeline: 1, codec: "h264", crf: 16, imageFormat: "jpeg", jpegQuality: 92, audioBitrate: "192k" };
+// Bump `pipeline` when the way scenes are drawn, encoded or assembled changes, to invalidate every scene.
+const SETTINGS = { pipeline: 2, crf: 16, jpegQuality: 92, audioBitrate: "192k", chrome: CHROME_BUILD };
 const DRAFT_SCALE = 2 / 3; // 1920×1080 → 1280×720
 
 const argv = process.argv.slice(2);
@@ -35,14 +35,10 @@ const opt = (name) => {
   const i = argv.indexOf(`--${name}`);
   return i < 0 ? undefined : argv[i + 1];
 };
-const engine = opt("engine") ?? "remotion";
-if (!argv[0] || argv[0].startsWith("--") || (flag("draft") && !opt("scene")) || !["remotion", "lyceum"].includes(engine)) {
-  console.error("usage: lyceum render <video> [--scene <scene-id> [--draft]] [--engine remotion|lyceum]");
+if (!argv[0] || argv[0].startsWith("--") || (flag("draft") && !opt("scene"))) {
+  console.error("usage: lyceum render <video> [--scene <scene-id> [--draft]]");
   process.exit(2);
 }
-const { CHROME_BUILD, openScene } = engine === "lyceum" ? await import("./chrome.mjs") : {};
-// The engine enters the fingerprint only when it's Lyceum's: Remotion's settings hash as they always have.
-const RENDER = engine === "lyceum" ? { ...SETTINGS, engine, chrome: CHROME_BUILD } : SETTINGS;
 
 const video = videoSlug(argv[0]);
 const source = videoDir(video);
@@ -56,8 +52,7 @@ if (only && !narration.scenes.some((s) => s.id === only)) {
   process.exit(2);
 }
 
-await holdSlot("remotion");
-const serveUrl = engine === "remotion" ? await (await import("./bundle.mjs")).bundleProject() : null;
+await holdSlot("browser");
 
 if (only && flag("draft")) {
   const out = join(scenesOut, `${only}.draft.mp4`);
@@ -80,25 +75,12 @@ if (only && flag("draft")) {
   else assemble();
 }
 
-/** Renders one scene to `out`, with all cores. */
+/** Renders one scene to `out`: every frame drawn in Chrome, a tab per core, piped into ffmpeg with the
+ *  scene's narration clip starting after its lead-in. The file is written beside `out` and moved into
+ *  place once it's whole, so a failed render leaves the last good one. */
 async function renderScene(id, out, scale) {
   const started = Date.now();
   process.stdout.write(`  rendering ${id}… `);
-  if (engine === "lyceum") {
-    await drawScene(id, out, scale);
-  } else {
-    const { renderMedia, selectComposition } = await import("@remotion/renderer");
-    const composition = await selectComposition({ serveUrl, id: `${video}--${id}` });
-    const { pipeline, ...settings } = SETTINGS;
-    await renderMedia({ ...settings, composition, serveUrl, scale, concurrency: cpus().length, outputLocation: out });
-  }
-  console.log(`${((Date.now() - started) / 1000).toFixed(0)}s`);
-}
-
-/** Lyceum's renderer: every frame drawn in Chrome, a tab per core, piped into ffmpeg with the scene's
- *  narration clip starting after its lead-in. The file is written beside `out` and moved into place
- *  once it's whole, so a failed render leaves the last good one. */
-async function drawScene(id, out, scale) {
   const scene = narration.scenes.find((s) => s.id === id);
   const partial = out.replace(/\.mp4$/, ".partial.mp4");
   const delay = Math.round((scene.leadInFrames / narration.fps) * 1000);
@@ -138,6 +120,7 @@ async function drawScene(id, out, scale) {
   } finally {
     await page.close();
   }
+  console.log(`${((Date.now() - started) / 1000).toFixed(0)}s`);
 }
 
 /** Everything that decides how a scene's frames and audio come out, hashed. */
@@ -150,7 +133,7 @@ function fingerprint(id) {
   const support = files.filter((f) => !/^s\d+-.+\.tsx$/.test(f) && f !== "index.ts");
   const kit = readdirSync(join(ENGINE, "kit")).sort().map((f) => join(ENGINE, "kit", f));
   const hash = createHash("sha256");
-  hash.update(JSON.stringify({ SETTINGS: RENDER, index, fps: narration.fps, width: narration.width, height: narration.height, scene: narration.scenes[index] }));
+  hash.update(JSON.stringify({ SETTINGS, index, fps: narration.fps, width: narration.width, height: narration.height, scene: narration.scenes[index] }));
   for (const path of [join(scenesDir, own), ...support.map((f) => join(scenesDir, f)), ...kit]) {
     // Kit files are named relative to the package, so where Lyceum is installed doesn't matter.
     hash.update(path.startsWith(ENGINE) ? relative(ENGINE, path) : relative(ROOT, path)).update(readFileSync(path));

@@ -16,8 +16,8 @@ subagent labels the element "illustrative" instead.
 ---
 
 You are building one animated scene for a narrated, 3Blue1Brown-style explainer video. It's made with
-Lyceum and rendered with Remotion (React and TypeScript). The project is `<absolute path to the directory
-holding lyceum.config.json>`; work only from that directory.
+Lyceum (React and TypeScript). The project is `<absolute path to the directory holding
+lyceum.config.json>`; work only from that directory.
 
 ## Your assignment: scene <NN> · <id> (<its one-line role in the arc>)
 
@@ -37,7 +37,7 @@ Other agents are building the other scenes at the same time.
   `narration.json`, or anything in the Lyceum package.
 - If you need a helper, define it in your own file.
 - Never run `lyceum narrate`: it bills a paid voice API.
-- Never start Studio, and never render video.
+- Never render video.
 
 ## Scene notes
 <the layout; what appears at which cue words; the real names, values and snippets to show, exactly; what

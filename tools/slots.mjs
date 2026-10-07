@@ -1,5 +1,5 @@
 // Machine-wide slots for the memory-hungry work: each Whisper alignment loads its own model, and each
-// Remotion job bundles and drives a headless browser. A cap inside one process isn't enough, because
+// render or contact sheet drives a headless browser. A cap inside one process isn't enough, because
 // several commands (narrations, renders, scene agents' stills) can run at once. Three narrations and a
 // render together once exhausted 16 GB and froze the machine (2026-10-04), so every such job takes a
 // slot here first, and the slots are shared by every process on the machine.
@@ -17,11 +17,11 @@ const LOCKS = join(HOME, "locks");
 const GB = 1024 ** 3;
 
 /** How many of each kind may run at once on this machine, by memory: a Whisper model is ~2 GB resident,
- *  a Remotion job (bundle + browser tabs) ~4 GB, a TypeScript check ~0.5–1 GB. On 16 GB that is two
- *  alignments, one Remotion job and two type checks. */
+ *  a browser job (headless Chrome, a tab per core) ~4 GB, a TypeScript check ~0.5–1 GB. On 16 GB that is
+ *  two alignments, one browser job and two type checks. */
 export const SLOTS = {
   whisper: Math.max(1, Math.floor(totalmem() / (8 * GB))),
-  remotion: Math.max(1, Math.floor(totalmem() / (16 * GB))),
+  browser: Math.max(1, Math.floor(totalmem() / (16 * GB))),
   typecheck: Math.max(1, Math.floor(totalmem() / (8 * GB))),
 };
 
@@ -78,7 +78,7 @@ export async function withSlot(kind, task) {
       if (tryTake(candidate)) path = candidate;
     }
     if (path) break;
-    if (!waited && kind === "remotion") console.log(`  waiting for a free ${kind} slot (another render or stills run is going)…`);
+    if (!waited && kind === "browser") console.log(`  waiting for a free ${kind} slot (another render or stills run is going)…`);
     waited = true;
     await new Promise((resume) => setTimeout(resume, 300));
   }

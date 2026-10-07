@@ -1,2 +1,5 @@
 node_modules/
 .DS_Store
+
+# Planning notes, kept local
+backlog/

@@ -11,5 +11,5 @@
     "lib": ["ES2023", "DOM"],
     "paths": { "@lyceum/videos": ["./kit/videos.stub.ts"] }
   },
-  "include": ["kit", "studio"]
+  "include": ["kit"]
 }

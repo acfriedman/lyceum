@@ -11,7 +11,7 @@
     "./kit": "./kit/scene.ts",
     "./package.json": "./package.json"
   },
-  "files": ["bin", "kit", "studio", "tools", "fonts", "skills", ".claude-plugin", "README.md", "LICENSE"],
+  "files": ["bin", "kit", "tools", "fonts", "skills", ".claude-plugin", "README.md", "LICENSE"],
   "engines": { "node": ">=20" },
   "scripts": {
     "typecheck": "tsc -p ."

@@ -7,9 +7,9 @@ import { build } from "esbuild";
 import puppeteer from "puppeteer-core";
 import { existsSync, readFileSync } from "node:fs";
 import { createServer } from "node:http";
+import { createRequire } from "node:module";
 import { basename, extname, join } from "node:path";
-import { HOME, KIT, videoDir } from "./paths.mjs";
-import { TYPES, font, outputs, pageBuild } from "./pages.mjs";
+import { ENGINE, HOME, KIT, REGISTRY, ROOT, videoDir } from "./paths.mjs";
 
 /** The Chrome for Testing build that draws frames (the one Remotion 4.0.533 was tested against, so the
  *  two renderers can be compared pixel for pixel). Text and filters can come out differently in another
@@ -56,17 +56,60 @@ html, body { margin: 0; overflow: hidden; }
 <body><div id="stage"></div><script src="page.js"></script></body></html>
 `;
 
-/** The page, bundled with the project's videos: file name → contents. */
-async function bundlePage() {
-  return new Map([["index.html", HTML], ...outputs(await build(pageBuild(join(KIT, "page.tsx"))))]);
+/** Where to resolve a package from: the project, if it has its own copy, else Lyceum. */
+function resolveDir(name) {
+  try {
+    createRequire(join(ROOT, "package.json")).resolve(`${name}/package.json`);
+    return ROOT;
+  } catch {
+    return ENGINE;
+  }
 }
+
+/** The kit and the registry resolve to this Lyceum, whatever the project's own package.json says, and
+ *  React to a single copy across the kit and the scenes (two Reacts break hooks). */
+const resolver = {
+  name: "lyceum",
+  setup(build) {
+    const fixed = { "#kit": join(KIT, "scene.ts"), "lyceum/kit": join(KIT, "scene.ts"), "@lyceum/videos": REGISTRY };
+    build.onResolve({ filter: /^(#kit|lyceum\/kit|@lyceum\/videos)$/ }, (args) => ({ path: fixed[args.path] }));
+    const single = { resolved: true };
+    build.onResolve({ filter: /^react(-dom)?(\/|$)/ }, async (args) => {
+      if (args.pluginData === single) return undefined;
+      const name = args.path.startsWith("react-dom") ? "react-dom" : "react";
+      const result = await build.resolve(args.path, { kind: args.kind, resolveDir: resolveDir(name), pluginData: single });
+      return result.errors.length ? { errors: result.errors } : { path: result.path };
+    });
+  },
+};
+
+/** Bundles the page with the project's videos, in memory: file name → contents. */
+async function bundlePage() {
+  const { outputFiles } = await build({
+    entryPoints: [join(KIT, "page.tsx")],
+    outfile: "page.js",
+    bundle: true,
+    write: false,
+    format: "iife",
+    platform: "browser",
+    target: "chrome120",
+    jsx: "automatic",
+    define: { "process.env.NODE_ENV": '"production"' },
+    plugins: [resolver],
+    logLevel: "silent",
+  });
+  return new Map([["index.html", HTML], ...outputFiles.map((f) => [basename(f.path), f.contents])]);
+}
+
+const TYPES = { ".html": "text/html", ".js": "text/javascript", ".woff2": "font/woff2" };
 
 /** Serves the page, and the kit's fonts under /fonts/, on a free localhost port. */
 async function serve(files) {
+  const fonts = join(ENGINE, "fonts");
   const server = createServer((request, response) => {
     const path = new URL(request.url, "http://localhost").pathname;
     const name = basename(path);
-    const body = path.startsWith("/fonts/") ? font(name) : files.get(name);
+    const body = path.startsWith("/fonts/") ? existsSync(join(fonts, name)) && readFileSync(join(fonts, name)) : files.get(name);
     if (!body) return response.writeHead(404).end();
     response.writeHead(200, { "content-type": TYPES[extname(name)] ?? "application/octet-stream" }).end(body);
   });

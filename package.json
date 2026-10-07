@@ -1,7 +1,7 @@
 {
   "name": "lyceum",
   "version": "0.1.0",
-  "description": "Narrated, 3Blue1Brown-style explainer videos from a script: text-to-speech with word timings, and React scenes timed to the spoken words, rendered in headless Chrome. Built to be driven by a coding agent.",
+  "description": "Narrated explainer videos from a script: text-to-speech with word timings, and React scenes timed to the spoken words, rendered in headless Chrome. Built to be driven by a coding agent.",
   "license": "MIT",
   "author": "Andrew Friedman",
   "repository": { "type": "git", "url": "git+https://github.com/acfriedman/lyceum.git" },

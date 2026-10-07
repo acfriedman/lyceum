@@ -1,6 +1,6 @@
 # Lyceum
 
-Narrated, 3Blue1Brown-style explainer videos, written as a script and built by your coding agent.
+Narrated explainer videos, written as a script and built by your coding agent.
 
 A video starts as one `script.md`. Lyceum voices each scene with text-to-speech and records when every
 word is spoken. Each scene is a React component that times its animation to those words with
@@ -30,12 +30,7 @@ code and systems. Nothing in it is specific to code, though.
   voices: Lyceum aligns them with local Whisper (mlx-whisper). ElevenLabs reports timings itself, so it
   works anywhere.
 - **A coding agent** that reads [Agent Skills](https://agentskills.io): Claude Code, Codex CLI, Gemini
-  CLI, Cursor, GitHub Copilot and others. Optional; every step can be run by hand.
-
-## Licensing
-
-Lyceum is [MIT](LICENSE). Its dependencies are under permissive licenses (MIT, Apache 2.0, ISC and BSD),
-and the bundled CMU Serif and JetBrains Mono fonts under the SIL Open Font License.
+  CLI, Cursor, GitHub Copilot and others.
 
 ## Getting started
 
@@ -47,24 +42,8 @@ cd explainers && npm install
 npx lyceum skill link                           # gives your coding agent the Lyceum skill
 ```
 
-Then edit `explainers/brief.md`: who the audience is, where the facts come from, and any house rules.
-Put your voice key in the environment or in a `.env` at or above the project:
-- `OPENAI_KEY` or `OPENAI_API_KEY`;
-- `ELEVEN_LABS_KEY` or `ELEVENLABS_API_KEY`.
-
-Now ask your agent for a video ("make a 5-minute explainer on how our cache invalidation works").
-
-**Claude Code** can also install the skill as a plugin:
-
-```
-/plugin marketplace add acfriedman/lyceum
-/plugin install lyceum@lyceum
-```
-
-`lyceum skill link` links the skill for every agent whose directory exists in your home folder
-(`~/.claude`, `~/.codex`, `~/.agents`). Two options change that:
-- `--agent claude,codex` picks the agents;
-- `--project <repo>` links it into one repository instead.
+Then ask your agent for a video: "make a 5-minute explainer on how our cache invalidation works." It's
+happy to walk you through the rest, from the project's brief to your voice key.
 
 ## A project
 
@@ -94,27 +73,7 @@ explainers/
 | `pronounce` | `{}` | written → spoken, for every script (a script's own map wins) |
 | `allowSpoken` | `[]` | acronyms the narration check should allow |
 
-## By hand
+## Licensing
 
-| Command | Does |
-| --- | --- |
-| `lyceum new <slug> "<Title>"` | starts `videos/<slug>/script.md` |
-| `lyceum narrate <slug> [--provider openai\|elevenlabs\|say] [--only <scene>]` | voices the script; writes `narration.json` and `captions.srt`. Clips are cached by voice and text, so only changed text is billed. |
-| `lyceum scenes <slug>` | scaffolds scene components and writes per-scene briefs, word timings and the kit API to `.cache/work/<slug>/` |
-| `lyceum stills <slug> <scene> --at 1,4,8` | a contact sheet of frames, to check layout and timing without video |
-| `lyceum render <slug> [--scene <id> [--draft]]` | renders stale scenes, then joins them with narration and subtitles |
-| `lyceum typecheck` | type-checks the scenes |
-
-A script is one `## NN · id — Title` per scene, then `> Visual:` lines (the animation brief), then
-narration paragraphs written for the ear. Frontmatter can set `pronounce:`, `allow_spoken:`, `voice:` and
-`timing:`.
-
-Video is 1920×1080 at 30 fps. Scenes express every duration in seconds × `fps`, so the frame rate stays a
-setting.
-
-## Memory
-
-Speech alignment loads a Whisper model per job, and rendering drives a headless browser. Lyceum caps both
-for the whole machine, across every project, so parallel scene agents and overlapping commands queue
-instead of exhausting memory. The caps scale with RAM: on 16 GB, two alignments, one render or stills
-job, and two type-checks.
+Lyceum is [MIT](LICENSE). Its dependencies are under permissive licenses (MIT, Apache 2.0, ISC and BSD),
+and the bundled CMU Serif and JetBrains Mono fonts under the SIL Open Font License.

@@ -1,6 +1,6 @@
 {
   "name": "lyceum",
-  "description": "Narrated, 3Blue1Brown-style explainer videos: the Lyceum skill (script, narrate, animate, render).",
+  "description": "Narrated explainer videos: the Lyceum skill (script, narrate, animate, render).",
   "version": "0.1.0",
   "author": { "name": "Andrew Friedman" },
   "repository": "https://github.com/acfriedman/lyceum",

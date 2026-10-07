@@ -1,6 +1,6 @@
 ---
 name: lyceum
-description: Make narrated explainer videos about code, systems or ideas with Lyceum (React scenes timed to text-to-speech narration). Use when the user asks for an explainer video, a narrated walkthrough, a video series, or "help me understand X visually", and when they ask to revise, re-narrate, re-render or extend an existing Lyceum video.
+description: Make explainer videos of animated, narrated diagrams about code, systems or ideas with Lyceum (React scenes timed to text-to-speech narration). Use when the user asks for an explainer video, a narrated walkthrough, a video series, or "help me understand X visually", and when they ask to revise, re-narrate, re-render or extend an existing Lyceum video.
 ---
 
 # Lyceum: explainer videos

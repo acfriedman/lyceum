@@ -5,7 +5,7 @@
     {
       "name": "lyceum",
       "source": "./",
-      "description": "Narrated explainer videos: the Lyceum skill (script, narrate, animate, render)."
+      "description": "Explainer videos made of animated, narrated diagrams: the Lyceum skill (script, narrate, animate, render)."
     }
   ]
 }

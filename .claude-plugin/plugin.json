@@ -1,6 +1,6 @@
 {
   "name": "lyceum",
-  "description": "Narrated explainer videos: the Lyceum skill (script, narrate, animate, render).",
+  "description": "Explainer videos made of animated, narrated diagrams: the Lyceum skill (script, narrate, animate, render).",
   "version": "0.1.0",
   "author": { "name": "Andrew Friedman" },
   "repository": "https://github.com/acfriedman/lyceum",

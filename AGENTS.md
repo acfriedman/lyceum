@@ -5,7 +5,7 @@ skill in `skills/lyceum/SKILL.md` instead.
 
 ## What this is
 
-Lyceum turns a `script.md` into a narrated explainer video: text-to-speech per scene with word timings,
+Lyceum turns a `script.md` into an explainer video of animated, narrated diagrams: text-to-speech per scene with word timings,
 React scenes timed to the words, and an incremental renderer that draws them in headless Chrome. It's a
 package that **projects**
 depend on. A project is any directory with `lyceum.config.json`; it holds the videos, and Lyceum holds

@@ -1,6 +1,5 @@
 // One scene on its stage: the background, the fade in and out, and the scene's number and title, at the
-// clock's frame. Lyceum's renderer draws a stage per frame (page.tsx); the Remotion compositions in
-// Video.tsx lay stages on the narration's timeline.
+// clock's frame. The renderer draws a stage per frame (page.tsx).
 
 import React from "react";
 import { useClock } from "./clock";
@@ -20,8 +19,8 @@ export type Narration = {
 
 export type SceneMap = Record<string, React.FC>;
 
-/** A layer covering the whole frame: the box Remotion's AbsoluteFill draws, so scenes lay out the same
- *  under either renderer. */
+/** A layer covering the whole frame, laid out as a flex column: the box scenes were written against
+ *  (Remotion's AbsoluteFill, when Lyceum rendered with Remotion). */
 export const Fill: React.FC<{ style?: React.CSSProperties; children?: React.ReactNode }> = ({ style, children }) => (
   <div style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, width: "100%", height: "100%", display: "flex", flexDirection: "column", ...style }}>
     {children}

@@ -2,6 +2,15 @@
 
 Explainer videos made of animated, narrated diagrams, written as a script and built by your coding agent.
 
+## Watch
+
+<!-- The video goes here: explainers/videos/what-is-lyceum/dist/what-is-lyceum.mp4, uploaded to GitHub. -->
+
+What Lyceum is and what using it is like, in under three minutes. The video was made with Lyceum: its
+script and scenes are in [`explainers/`](explainers/videos/what-is-lyceum/script.md).
+
+## How it works
+
 A video starts as one `script.md`. Lyceum voices each scene with text-to-speech and records when every
 word is spoken. Each scene is a React component that times its animation to those words with
 `cue("spoken words")`, and Lyceum draws it frame by frame in headless Chrome. An incremental renderer

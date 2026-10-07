@@ -41,14 +41,19 @@ skills/lyceum/      the agent skill (Agent Skills format: SKILL.md + references/
 
 - **Keep the narration cache stable.** Clips are cached by a hash of the voice object and the spoken text.
   Changing a default voice's fields, or their key order, re-bills every project's narration.
-- **Render fingerprints:** they include every kit file. A kit change re-renders every scene of every
-  project once. That's correct, but say so in the commit.
+- **Render fingerprints:** they include every kit file, and with `--engine lyceum` the pinned Chrome build
+  (`CHROME_BUILD` in `tools/chrome.mjs`). Changing either re-renders every scene of every project once.
+  That's correct, but say so in the commit.
+- **Keep the two renderers drawing the same frames.** Scenes depend on what Remotion's page does: every
+  element is border-box, and Chrome runs at the render's scale. `tools/chrome.mjs` reproduces both. After
+  changing the kit, the renderer's page or its Chrome switches, make a contact sheet with each engine:
+  they should match byte for byte.
 - **Respect the memory caps.** Anything that loads a Whisper model, drives a browser or runs `tsc` takes
   a slot from `tools/slots.mjs`. Never add a heavy step outside one.
 - **Check your changes:**
   - `npm run typecheck` type-checks the kit on its own, against `kit/videos.stub.ts`.
   - Exercise tool changes in a real project: `npm install --install-links <path to this repo>` there,
-    then `npx lyceum stills …` and `npx lyceum render …`.
+    then `npx lyceum stills …` and `npx lyceum render …`, with and without `--engine lyceum`.
 - **Keep the skill agent-neutral.** Don't name one agent's tools in `skills/`. Write "if your agent can
   run subagents…", not a specific tool name.
 - **Licenses:** Lyceum is MIT. Remotion has its own license (free for individuals and small companies);

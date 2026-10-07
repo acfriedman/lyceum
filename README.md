@@ -4,7 +4,7 @@ Explainer videos made of animated, narrated diagrams, written as a script and bu
 
 ## Watch
 
-<!-- The video goes here: explainers/videos/what-is-lyceum/dist/what-is-lyceum.mp4, uploaded to GitHub. -->
+https://github.com/user-attachments/assets/e58e9af7-205d-4981-9681-8e6d1ee16ba1
 
 What Lyceum is and what using it is like, in under three minutes. The video was made with Lyceum: its
 script and scenes are in [`explainers/`](explainers/videos/what-is-lyceum/script.md).

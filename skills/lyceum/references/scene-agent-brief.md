@@ -23,8 +23,8 @@ lyceum.config.json>`; work only from that directory.
 
 Read these four files and nothing else:
 1. `.cache/work/<slug>/scenes/<id>.md`: your scene's pack.
-   - It has the file you own and its export name, the scenes before and after, the visual brief, the
-     narration, and every spoken word with its start time. The audio is final.
+   - It has the file you own and its export name, the scenes before and after, what the video is for,
+     the visual brief, the narration, and every spoken word with its start time. The audio is final.
    - The visual brief is authoritative. Quote its code, names and values exactly, and label on screen
      anything it calls simplified or illustrative.
 2. `.cache/work/<slug>/kit-api.md`: the whole scene API. Import kit things from `"#kit"`.

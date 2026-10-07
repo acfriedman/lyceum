@@ -52,14 +52,17 @@ export function findProject(from = process.env.LYCEUM_PROJECT ?? process.cwd()) 
  * A project's settings, with defaults:
  *   videos       the videos directory (default "videos")
  *   cache        the regenerable cache directory (default ".cache")
- *   brief        a markdown file the agent skill reads first: audience, house rules, ground truth
+ *   project      the project's guide, a markdown file the agent skill reads first: audience, ground
+ *                truth, house rules, review and delivery (read from `brief` in older projects)
  *   voice        the default narration voice, as a script's `voice:` frontmatter would set it
  *   pronounce    written form → spoken form, for every script (a script's own map wins)
  *   allowSpoken  words the acronym check lets through, for every script
  */
 export function loadConfig(root) {
   const raw = JSON.parse(readFileSync(join(root, CONFIG_FILE), "utf8"));
-  return { videos: "videos", cache: ".cache", pronounce: {}, allowSpoken: [], ...raw };
+  const config = { videos: "videos", cache: ".cache", pronounce: {}, allowSpoken: [], ...raw };
+  config.project ??= raw.brief ?? "project.md";
+  return config;
 }
 
 export const ROOT = findProject();

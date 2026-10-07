@@ -27,7 +27,7 @@ if (!existsSync(narrationPath)) {
   process.exit(1);
 }
 
-const { scenes } = parseScript(join(videoDir, "script.md"));
+const { intent, scenes } = parseScript(join(videoDir, "script.md"));
 const narration = JSON.parse(readFileSync(narrationPath, "utf8"));
 const pascal = (id) => id.replace(/(^|-)([a-z0-9])/g, (_, __, c) => c.toUpperCase());
 const camel = (id) => pascal(id).replace(/^./, (c) => c.toLowerCase());
@@ -120,7 +120,7 @@ scenes.forEach((scene, index) => {
 File: \`${relative(ROOT, join(scenesDir, `${entry.prefix}.tsx`))}\` → export \`${entry.component}\`
 Before: ${neighbour(index - 1)}
 After: ${neighbour(index + 1)}
-
+${intent ? `\n## What the video is for\n${intent.replace(/^#+ .*\n+/, "")}\n` : ""}
 ## Visual brief
 ${scene.visual || "(none)"}
 

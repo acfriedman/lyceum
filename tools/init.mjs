@@ -22,14 +22,15 @@ function create(name, content) {
 
 create(
   "lyceum.config.json",
-  JSON.stringify({ videos: "videos", cache: ".cache", brief: "brief.md", pronounce: {}, allowSpoken: [] }, null, 2) + "\n",
+  JSON.stringify({ videos: "videos", cache: ".cache", project: "project.md", pronounce: {}, allowSpoken: [] }, null, 2) + "\n",
 );
 
 create(
-  "brief.md",
-  `# Explainer brief
+  "project.md",
+  `# Explainer project
 
-The agent skill reads this before writing any script. Keep it short and specific to this project.
+What holds for every video here. The agent skill reads this before writing any script. Keep it short
+and specific; what one video is for goes in the intent at the top of its script.md.
 
 ## Audience
 
@@ -122,5 +123,5 @@ console.log(`
 Next:
   npm install                       installs Lyceum
   npx lyceum skill link             gives your coding agent the skill that drives the workflow
-  edit brief.md                     audience, ground truth, house rules
+  edit project.md                   audience, ground truth, house rules
   npx lyceum new <slug> "<Title>"   then ask your agent to write the script`);

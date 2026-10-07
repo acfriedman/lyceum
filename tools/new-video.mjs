@@ -34,8 +34,17 @@ sources: []
 <!--
 Format: one \`## NN · id — Title\` per scene. \`> Visual:\` lines describe the animation; every other
 paragraph is narration, spoken in order. The narration is the only text sent to TTS, so it is
-written for the ear: no identifiers that read badly aloud, short sentences.
+written for the ear: no identifiers that read badly aloud, short sentences. The intent above the
+first scene is never narrated.
 -->
+
+# Intent
+
+- **Point:** the one thing a viewer should leave knowing.
+- **For:** only if this video's audience differs from the project's.
+- **Angle:** where it starts and what it builds up to.
+- **Length:** about … minutes.
+- **Notes:** sources, constraints or ideas only this video has.
 
 ## 01 · cold-open — Title
 

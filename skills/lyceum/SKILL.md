@@ -12,20 +12,20 @@ it works.
 
 **Accuracy matters more than polish.** A beautiful animation of a wrong claim is worse than no video.
 
-## 0. Find the project and read its brief
+## 0. Find the project and read its guide
 
 A Lyceum project is the directory holding `lyceum.config.json`, found at or above the working directory.
 Run every command from there. If there is none, ask the user where the videos should live and run
 `npx lyceum init <dir>`, then `npm install`.
 
-Read the file named by the config's `brief` (usually `brief.md`) before anything else. It holds what this
-skill can't know:
+Read the file named by the config's `project` (usually `project.md`; older projects name it under
+`brief`) before anything else. It holds what this skill can't know, for every video in the project:
 - who the audience is;
 - where ground truth lives (repositories, design docs, tests);
 - project house rules: names, pronunciations, terms;
 - how work is reviewed and delivered.
 
-**Where the brief and this skill disagree, the brief wins.** The config can also set a default `voice`,
+**Where the project guide and this skill disagree, the guide wins.** The config can also set a default `voice`,
 plus `pronounce` and `allowSpoken` entries that apply to every script.
 
 Commands: `npx lyceum <command>`. Projects created by `lyceum init` also have the same commands as npm
@@ -56,7 +56,10 @@ Collect the concrete things the video can show:
 npx lyceum new <slug> "<Title>"
 ```
 
-Fill in `videos/<slug>/script.md`. Each scene is:
+Fill in `videos/<slug>/script.md`. Start with its **intent**, the section above the first scene: the
+point a viewer should leave with, the audience if it differs from the project's, the angle, the length,
+and anything only this video needs. It's never narrated, and every scene agent reads it. Then each scene
+is:
 - a `## NN · id — Title` heading;
 - `> Visual:` lines, the animation brief;
 - narration paragraphs.
@@ -92,8 +95,8 @@ What makes a script work:
   change. Vague briefs produce vague scenes.
 - **Give every claim a source.** If code on screen is simplified, the brief says "simplified".
 
-**Gate:** show the user the arc as numbered one-line scenes, with the script's path, and wait. They may
-waive review ("I trust your script"). Respect that, but still show the arc.
+**Gate:** show the user the intent and the arc as numbered one-line scenes, with the script's path, and
+wait. They may waive review ("I trust your script"). Respect that, but still show the intent and the arc.
 
 ### 4. Narrate
 
@@ -143,7 +146,8 @@ It's idempotent: re-run it after any narration change. It:
 - registers the video in `videos/index.ts`;
 - writes the authoring material to `.cache/work/<slug>/`:
   - `word-timings.md`;
-  - one brief pack per scene (`scenes/<id>.md`: the visual brief, narration and word timings);
+  - one brief pack per scene (`scenes/<id>.md`: the video's intent, the visual brief, narration and word
+    timings);
   - `kit-api.md`, the whole scene API on one page.
 
 ### 5. Set the visual vocabulary, then build scene 1 yourself
@@ -227,7 +231,7 @@ never goes into the assembled video. Finals are 1920×1080 at 30 frames per seco
 
 ### 9. Commit when asked
 
-Follow the brief's delivery rules. Commit and push only when the user asks. Never commit build artifacts:
+Follow the project guide's delivery rules. Commit and push only when the user asks. Never commit build artifacts:
 `.cache/` and `videos/*/dist/` are gitignored, and they should stay that way.
 
 ## Kit essentials

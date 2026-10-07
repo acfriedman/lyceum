@@ -43,18 +43,18 @@ npx lyceum skill link                           # gives your coding agent the Ly
 ```
 
 Then ask your agent for a video: "make a 5-minute explainer on how our cache invalidation works." It's
-happy to walk you through the rest, from the project's brief to your voice key.
+happy to walk you through the rest, from `project.md` to your voice key.
 
 ## A project
 
 ```
 explainers/
-  lyceum.config.json       videos dir, cache dir, brief, default voice, pronunciations
-  brief.md                 what the agent reads first: audience, ground truth, house rules
+  lyceum.config.json       videos dir, cache dir, project guide, default voice, pronunciations
+  project.md               what holds for every video: audience, ground truth, house rules
   package.json             depends on lyceum; maps "#kit" to lyceum/kit
   videos/index.ts          the registry (maintained by `lyceum scenes`)
   videos/<slug>/
-    script.md              the source of truth: scenes, visual briefs, narration
+    script.md              the source of truth: the video's intent, then scenes, visuals, narration
     scenes/                one component per scene, plus shared.tsx (the video's visual vocabulary)
     narration.json         generated: per-scene audio, word timings, timeline
     captions.srt           generated
@@ -68,7 +68,7 @@ explainers/
 | --- | --- | --- |
 | `videos` | `"videos"` | where the videos live |
 | `cache` | `".cache"` | where regenerable files go |
-| `brief` | `"brief.md"` | the project brief the agent reads first |
+| `project` | `"project.md"` | the project guide the agent reads first (older projects: `brief`) |
 | `voice` | OpenAI `cedar` | default voice, e.g. `{ "provider": "elevenlabs" }` or `{ "id": "marin" }` |
 | `pronounce` | `{}` | written → spoken, for every script (a script's own map wins) |
 | `allowSpoken` | `[]` | acronyms the narration check should allow |

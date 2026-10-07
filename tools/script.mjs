@@ -1,8 +1,9 @@
 // Parses a video's script.md into scenes.
 //
-// Format: optional YAML frontmatter, then one `## NN · id — Title` heading per scene. Lines starting
-// with `> ` are the visual description; every other paragraph is narration, spoken in order. HTML
-// comments are ignored.
+// Format: optional YAML frontmatter, then an optional intent section (what the video is for: anything
+// before the first scene, never narrated), then one `## NN · id — Title` heading per scene. Lines
+// starting with `> ` are the visual description; every other paragraph is narration, spoken in order.
+// HTML comments are ignored.
 
 import { readFileSync } from "node:fs";
 import YAML from "yaml";
@@ -11,7 +12,7 @@ const SCENE_HEADING = /^##\s+(\d+)\s+·\s+([a-z0-9-]+)\s+—\s+(.+)$/;
 
 /**
  * @param {string} path  the script.md to read
- * @returns {{ meta: Record<string, any>, scenes: { num: number, id: string, title: string, visual: string, narration: string }[] }}
+ * @returns {{ meta: Record<string, any>, intent: string, scenes: { num: number, id: string, title: string, visual: string, narration: string }[] }}
  */
 export function parseScript(path) {
   let source = readFileSync(path, "utf8").replace(/<!--[\s\S]*?-->/g, "");
@@ -23,6 +24,7 @@ export function parseScript(path) {
   }
 
   const scenes = [];
+  const intent = [];
   let current = null;
   for (const line of source.split("\n")) {
     const heading = line.match(SCENE_HEADING);
@@ -31,7 +33,10 @@ export function parseScript(path) {
       scenes.push(current);
       continue;
     }
-    if (!current) continue;
+    if (!current) {
+      intent.push(line);
+      continue;
+    }
     if (line.startsWith(">")) {
       current.visual.push(line.replace(/^>\s?/, "").replace(/^Visual:\s*/, ""));
     } else {
@@ -53,7 +58,7 @@ export function parseScript(path) {
     if (!scene.narration) throw new Error(`${path}: scene "${scene.id}" has no narration`);
   }
   if (scenes.length === 0) throw new Error(`${path}: no scenes (expected "## NN · id — Title" headings)`);
-  return { meta, scenes };
+  return { meta, intent: intent.join("\n").trim(), scenes };
 }
 
 /**

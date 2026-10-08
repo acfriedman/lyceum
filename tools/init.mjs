@@ -106,8 +106,8 @@ create(
   ) + "\n",
 );
 
-// .gitignore: renders, caches and dependencies are regenerable.
-const ignore = [".cache/", "videos/*/dist/", "node_modules/"];
+// .gitignore: renders, caches and dependencies are regenerable, and .env holds voice keys.
+const ignore = [".cache/", "videos/*/dist/", "node_modules/", ".env"];
 const ignorePath = join(dir, ".gitignore");
 const existing = existsSync(ignorePath) ? readFileSync(ignorePath, "utf8").split("\n") : [];
 const missing = ignore.filter((line) => !existing.includes(line));

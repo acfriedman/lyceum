@@ -56,6 +56,9 @@ npx lyceum skill link                           # gives your coding agent the Ly
 Then ask your agent for a video: "make a 5-minute explainer on how our cache invalidation works." It's
 happy to walk you through the rest, from `project.md` to your voice key.
 
+Where should the project live, and what changes when a team shares it? See
+[Setting up a project](docs/setting-up-a-project.md).
+
 ## A project
 
 ```

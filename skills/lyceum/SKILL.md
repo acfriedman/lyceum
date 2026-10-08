@@ -66,7 +66,11 @@ is:
 - `> Visual:` lines, the animation brief;
 - narration paragraphs.
 
-List the sources in the frontmatter.
+List the sources in the frontmatter, one per line: the path first, then what the video takes from it
+in parentheses, as in `- tools/render.mjs (one scene re-rendered on its own)`. Paths are relative to
+the root of the repository holding the project; a path into a checkout beside it starts with that
+checkout's directory name (`engine/src/cache.ts`). `lyceum stale` watches these paths, so name real
+files or directories rather than shorthand.
 
 What makes a script work:
 - **Build the problem before the solution.** A strong arc:
@@ -235,6 +239,32 @@ never goes into the assembled video. Finals are 1920×1080 at 30 frames per seco
 
 Follow the project guide's delivery rules. Commit and push only when the user asks. Never commit build artifacts:
 `.cache/` and `videos/*/dist/` are gitignored, and they should stay that way.
+
+Once the user approves the video, record what it was checked against:
+`npx lyceum stale --mark <slug>` writes the current commit to the script's `verified:`.
+
+### 10. Keep it current
+
+```bash
+npx lyceum stale [<slug>…] [--json]   # which videos' sources changed since they were verified
+npx lyceum stale --mark <slug>        # record that a video was checked at the current commit
+```
+
+`stale` lists, per video, the commits and files that changed among its sources since `verified:` (or,
+without one, since the last commit to touch the video). It exits 1 if any video is stale. Changes to a
+video's own directory don't count. It runs on committed history, so a shallow clone needs
+`git fetch --unshallow` first.
+
+A changed file doesn't mean a wrong video, and most diffs won't affect it. To revise a stale video:
+1. Read the diffs and commit messages against what the narration and `> Visual:` briefs claim. A claim
+   is stale when it is now false, or when a name, value or snippet on screen no longer matches. A rename
+   can make a claim stale even where the cited file didn't change; moved lines alone don't.
+2. If nothing is stale, run `stale --mark <slug>` and you're done.
+3. Otherwise make the smallest edit to the script that makes it true, keeping the voice, arc and length.
+   Fix the affected scenes to match. Keep cued phrases intact where you can, since `cue()` throws if the
+   narration no longer contains its phrase; where you can't, update the cue.
+4. Update `sources:`, then `stale --mark <slug>`. Re-narrate only the changed scenes
+   (`narrate <slug> --only <scene>`), and render.
 
 ## Kit essentials
 

@@ -1,0 +1,231 @@
+1
+00:00:00,600 --> 00:00:03,260
+You want explainer videos about your code.
+
+2
+00:00:03,460 --> 00:00:05,660
+The first question is where they live.
+
+3
+00:00:06,410 --> 00:00:11,170
+The tempting answer is to add Lyceum to your app's dependencies, like any other tool.
+
+4
+00:00:11,450 --> 00:00:16,030
+But Lyceum brings a whole toolchain with it: a browser driver, a bundler,
+
+5
+00:00:16,270 --> 00:00:18,290
+a type checker, and an interface library.
+
+6
+00:00:18,510 --> 00:00:21,930
+Where your app uses the same tools, the versions can collide.
+
+7
+00:00:22,190 --> 00:00:27,050
+And if your app is written in Go or Swift, there's no dependencies file to add
+
+8
+00:00:27,050 --> 00:00:27,610
+it to at all.
+
+9
+00:00:29,533 --> 00:00:33,333
+Instead, give the videos a small project of their own.
+
+10
+00:00:34,233 --> 00:00:40,533
+Lyceum's setup command creates a folder, usually called explainers, with its own dependencies,
+
+11
+00:00:40,893 --> 00:00:43,913
+a guide for the agent, and a folder for the videos.
+
+12
+00:00:44,813 --> 00:00:46,953
+Your app never sees any of it.
+
+13
+00:00:47,703 --> 00:00:53,463
+In a JavaScript monorepo, keep that folder out of the workspace, and out of the root
+
+14
+00:00:53,463 --> 00:00:56,103
+type check, linting and continuous integration.
+
+15
+00:00:56,503 --> 00:00:58,663
+It installs and checks itself.
+
+16
+00:01:00,667 --> 00:01:04,287
+If the videos explain one codebase to the people who work on it,
+
+17
+00:01:04,567 --> 00:01:09,167
+put that folder in the same repository, and treat it like documentation.
+
+18
+00:01:09,917 --> 00:01:15,037
+The agent's ground truth is right next door, at the same commit the video describes,
+
+19
+00:01:15,257 --> 00:01:16,297
+in any checkout.
+
+20
+00:01:17,317 --> 00:01:21,677
+Spotting a stale video is just a diff: each script lists the code it explains,
+
+21
+00:01:22,057 --> 00:01:25,357
+and the history shows what has changed since the video was checked.
+
+22
+00:01:25,797 --> 00:01:26,737
+And it's light.
+
+23
+00:01:27,057 --> 00:01:30,897
+What gets committed is the scripts, the scenes and the narration timings:
+
+24
+00:01:31,097 --> 00:01:34,217
+a little over a hundred kilobytes for a three-minute video.
+
+25
+00:01:34,617 --> 00:01:37,077
+The cost is a little noise in your pull requests.
+
+26
+00:01:39,100 --> 00:01:43,360
+Give the videos a repository of their own when they span several repositories,
+
+27
+00:01:43,360 --> 00:01:44,480
+or a whole product.
+
+28
+00:01:44,740 --> 00:01:48,340
+The same goes when they're for someone other than the code's contributors,
+
+29
+00:01:48,580 --> 00:01:50,540
+or they're your own learning material.
+
+30
+00:01:51,290 --> 00:01:54,610
+Then the project guide points at the other repositories by path.
+
+31
+00:01:55,050 --> 00:01:59,250
+So every author needs them checked out side by side, in the same layout.
+
+32
+00:01:59,890 --> 00:02:01,490
+Write that down in the guide.
+
+33
+00:02:03,500 --> 00:02:05,460
+Each author sets up their own machine.
+
+34
+00:02:06,040 --> 00:02:08,060
+First, give the coding agent the skill.
+
+35
+00:02:08,440 --> 00:02:13,340
+By default, it's linked for your whole user account, pointing at one project's copy of Lyceum.
+
+36
+00:02:13,760 --> 00:02:17,680
+With two projects on different versions, the agent only sees the first.
+
+37
+00:02:18,100 --> 00:02:22,440
+So link it for one repository instead, and keep the link out of version control,
+
+38
+00:02:22,660 --> 00:02:24,060
+since it points at your own install.
+
+39
+00:02:24,810 --> 00:02:26,950
+Second, a voice key.
+
+40
+00:02:27,230 --> 00:02:31,630
+Keep it in a key file inside the project, and make sure version control ignores it.
+
+41
+00:02:33,633 --> 00:02:36,333
+Now the part to know before you share with a team.
+
+42
+00:02:36,513 --> 00:02:40,093
+The scripts, the scenes and the word timings travel with the repository.
+
+43
+00:02:40,393 --> 00:02:42,153
+The narration audio doesn't.
+
+44
+00:02:42,353 --> 00:02:44,313
+It stays on the machine that voiced it.
+
+45
+00:02:45,063 --> 00:02:50,303
+A teammate who clones the project can still build scenes and check them on contact sheets,
+
+46
+00:02:50,483 --> 00:02:52,623
+because those only need the timings.
+
+47
+00:02:52,983 --> 00:02:55,563
+But rendering the video needs the audio.
+
+48
+00:02:56,143 --> 00:02:59,163
+Voicing it again costs money and gives a different take.
+
+49
+00:02:59,543 --> 00:03:03,363
+The timing shifts, and animations drift away from what was reviewed.
+
+50
+00:03:04,113 --> 00:03:08,113
+So for now, let one person own the narration and the final render.
+
+51
+00:03:08,733 --> 00:03:11,053
+Everyone else sends changes as pull requests.
+
+52
+00:03:13,067 --> 00:03:18,207
+Last, decide where viewers find the videos, because the finished renders aren't committed either.
+
+53
+00:03:18,547 --> 00:03:24,047
+Release assets, a documentation site, or attached to the pull request that changes what the video
+
+54
+00:03:24,047 --> 00:03:24,487
+explains.
+
+55
+00:03:24,807 --> 00:03:26,427
+Write the answer in the project guide.
+
+56
+00:03:27,177 --> 00:03:32,197
+So: the videos get their own small project, beside the code they explain.
+
+57
+00:03:32,517 --> 00:03:34,617
+The skill is linked per repository.
+
+58
+00:03:35,157 --> 00:03:37,057
+And one person owns the voice.

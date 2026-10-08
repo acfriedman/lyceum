@@ -4,7 +4,10 @@
 import type { Narration, SceneMap } from "#kit";
 import whatIsLyceumNarration from "./what-is-lyceum/narration.json";
 import { scenes as whatIsLyceumScenes } from "./what-is-lyceum/scenes";
+import settingUpNarration from "./setting-up/narration.json";
+import { scenes as settingUpScenes } from "./setting-up/scenes";
 
 export const videos: { narration: Narration; scenes: SceneMap }[] = [
   { narration: whatIsLyceumNarration as Narration, scenes: whatIsLyceumScenes },
+  { narration: settingUpNarration as Narration, scenes: settingUpScenes },
 ];

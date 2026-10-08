@@ -13,6 +13,7 @@ const COMMANDS = {
   scenes: ["scenes.mjs", "scaffold scene files and per-scene briefs from the narration: <video>"],
   stills: ["stills.mjs", "a contact sheet of one scene: <video> <scene> [--at <s1,s2,…> | --every <s>]"],
   render: ["render.mjs", "render a video (or one scene): <video> [--scene <id> [--draft]]"],
+  stale: ["stale.mjs", "which videos' sources changed since they were checked: [<video>…] [--json] | --mark <video>…"],
   typecheck: ["typecheck.mjs", "type-check the project's scenes"],
   skill: ["skill.mjs", "install the agent skill: link [--agent claude,codex,agents] [--project <dir>]"],
 };

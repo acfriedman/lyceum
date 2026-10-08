@@ -14,7 +14,7 @@ Lyceum renders frames. Lead with why and what it's like to use, not how it's bui
 All paths are relative to the Lyceum repository (this project's parent directory):
 - `README.md` and `skills/lyceum/SKILL.md`: what Lyceum does and the workflow it drives.
 - `tools/`: the commands, when a claim needs checking.
-- `../haruspec-org/haruspec-proj-mgmt/explainers/`: the first real project, seven videos explaining a
+- `../haruspec-org/haruspec-proj-mgmt/explainers/` (on Andrew's machine only): the first real project, seven videos explaining a
   software engine's internals. Its scripts are real examples to show on screen.
 
 ## House rules
@@ -31,5 +31,11 @@ All paths are relative to the Lyceum repository (this project's parent directory
 - **Gates:** show Andrew the arc before narrating.
 - **Delivery:** send the finished MP4 to him directly. The README video is his to upload.
 - **Commits:** sources go to Lyceum's main, with no branch or pull request, and only when he asks.
+- **Staleness routine:** a scheduled agent runs `npx lyceum stale` here. For each video whose claims
+  went out of date it opens one pull request, on the branch `explainers/stale-<slug>`; when a check finds
+  nothing to change, it pushes only the `verified:` update to main. It never narrates or renders: Andrew
+  does that after checking out the branch. These are the only pull requests and the only pushes made
+  without his asking.
+- **Verified:** when Andrew approves a video, set its `verified:` with `npx lyceum stale --mark <slug>`.
 - **Revisions:** Andrew reviews rendered MP4s. Re-render only the scene he points at
   (`npm run render -- <video> --scene <id>`, `--draft` for 720p), and the whole video once he approves.

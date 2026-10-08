@@ -9,19 +9,31 @@ import { readFileSync } from "node:fs";
 import YAML from "yaml";
 
 const SCENE_HEADING = /^##\s+(\d+)\s+·\s+([a-z0-9-]+)\s+—\s+(.+)$/;
+const FRONTMATTER = /^---\n([\s\S]*?)\n---\n/;
+
+/**
+ * A script's frontmatter, without parsing its scenes (a draft may have none yet).
+ *
+ * @param {string} source  the text of a script.md
+ * @param {{ strings?: boolean }} options  `strings` reads every value as a string, so a commit like
+ *   `1234567` or `1e34567` stays as written instead of becoming a number
+ * @returns {{ meta: Record<string, any>, block: string | null, body: string }}
+ */
+export function frontmatter(source, { strings = false } = {}) {
+  const front = source.match(FRONTMATTER);
+  if (!front) return { meta: {}, block: null, body: source };
+  const meta = YAML.parse(front[1], strings ? { schema: "failsafe" } : {}) ?? {};
+  return { meta, block: front[1], body: source.slice(front[0].length) };
+}
 
 /**
  * @param {string} path  the script.md to read
  * @returns {{ meta: Record<string, any>, intent: string, scenes: { num: number, id: string, title: string, visual: string, narration: string }[] }}
  */
 export function parseScript(path) {
-  let source = readFileSync(path, "utf8").replace(/<!--[\s\S]*?-->/g, "");
-  let meta = {};
-  const front = source.match(/^---\n([\s\S]*?)\n---\n/);
-  if (front) {
-    meta = YAML.parse(front[1]) ?? {};
-    source = source.slice(front[0].length);
-  }
+  const parsed = frontmatter(readFileSync(path, "utf8").replace(/<!--[\s\S]*?-->/g, ""));
+  const { meta } = parsed;
+  const source = parsed.body;
 
   const scenes = [];
   const intent = [];

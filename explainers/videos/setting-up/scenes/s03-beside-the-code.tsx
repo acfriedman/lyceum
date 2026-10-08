@@ -3,7 +3,8 @@ import { Arrow, C, FONT, Line, Pill, Svg, Text, prog, useScene } from "#kit";
 import { Command, FileTree, Panel, ROLE, TREE, treeRowX, treeRowY, useAppear } from "./shared";
 
 // One codebase, one team: put explainers/ in the same repository and treat it like documentation.
-// The agent's ground truth sits next door at the same commit; staleness is a git diff; the committed
+// The agent's ground truth sits next door at the same commit; staleness is a diff that `lyceum stale`
+// reads from the history; the committed
 // part is light; the cost is a little noise in pull requests.
 
 const RIGHT = 900;
@@ -12,7 +13,7 @@ const MONO_W = TREE.size * 0.6;
 /** The end of a tree row's name, for pointing at it. */
 const nameEnd = (depth: number, name: string) => treeRowX(depth) + name.length * MONO_W;
 
-/** One line of `git log --oneline` output: a dim hash, then the subject. */
+/** One commit in `lyceum stale`'s output, indented under its video: a dim hash, then the subject. */
 const LogLine: React.FC<{ y: number; hash: string; subject: string; at: number; out: number }> = ({ y, hash, subject, at, out }) => {
   const o = useAppear(at, out, 0.4);
   if (o <= 0) return null;
@@ -20,7 +21,7 @@ const LogLine: React.FC<{ y: number; hash: string; subject: string; at: number; 
     <div
       style={{
         position: "absolute",
-        left: RIGHT + 34,
+        left: RIGHT + 34 + 2 * MONO_W,
         top: y,
         transform: "translate(0, -50%)",
         opacity: o,
@@ -187,7 +188,7 @@ export const BesideTheCode: React.FC = () => {
         any checkout or worktree
       </Text>
 
-      {/* Beat 3: a stale video is a diff between the script's sources and the history. */}
+      {/* Beat 3: a stale video is a diff between the script's sources, since its verified commit, and the history. */}
       <Panel
         x={RIGHT}
         y={SC.y}
@@ -200,16 +201,23 @@ export const BesideTheCode: React.FC = () => {
           { text: "---", color: C.dim },
           { text: "sources:" },
           { text: "  - src/cache/", color: ROLE.app },
+          { text: "verified: a1b2c3d" },
           { text: "---", color: C.dim },
         ]}
-        highlight={[{ lines: [2], at: lists, color: ROLE.app }]}
+        highlight={[
+          { lines: [2], at: lists, out: since, color: ROLE.app },
+          { lines: [3], at: since, color: ROLE.you },
+        ]}
       />
       <Pill x={RIGHT + SC.w + 140} y={SC.y + 27} text="may be stale" color={ROLE.you} at={since} out={light} size={28} />
-      <Command x={RIGHT} y={580} text="git log a1b2c3d.. -- src/cache/" at={history} out={light} />
-      <LogLine y={650} hash="e4f5a6b" subject="Evict by size, not by count" at={changed} out={light} />
-      <LogLine y={705} hash="9c8d7e6" subject="Rename CacheEntry to Slot" at={changed + s(0.3)} out={light} />
-      <Text x={RIGHT + 34} y={768} size={26} color={C.dim} italic anchor="left" at={changed + s(0.6)} out={light} reveal="fade" dur={0.5}>
-        illustrative
+      <Command x={RIGHT} y={600} text="npx lyceum stale cache" cps={40} at={history} out={light} />
+      <Text x={RIGHT + 34} y={665} size={30} font="mono" color={C.text} anchor="left" at={changed} out={light} reveal="fade" dur={0.4}>
+        cache  stale  2 commits since a1b2c3d
+      </Text>
+      <LogLine y={720} hash="e4f5a6b" subject="Evict by size, not by count" at={changed + s(0.3)} out={light} />
+      <LogLine y={775} hash="9c8d7e6" subject="Rename CacheEntry to Slot" at={changed + s(0.6)} out={light} />
+      <Text x={RIGHT + 34} y={838} size={26} color={C.dim} italic anchor="left" at={changed + s(0.9)} out={light} reveal="fade" dur={0.5}>
+        illustrative, simplified
       </Text>
 
       {/* Beat 4: what gets committed is light. */}

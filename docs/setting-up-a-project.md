@@ -28,8 +28,9 @@ The deciding question is what the videos are tied to.
 people who work on it. Treat them like `docs/`:
 - **Ground truth is `..`.** The agent reads the code at the same commit the video describes, in any checkout
   or worktree.
-- **Spotting stale videos is a diff.** A script lists the paths it explains under `sources:`. Running
-  `git log` on those paths since the video was last checked shows what changed.
+- **Spotting stale videos is a diff.** A script lists the paths it explains under `sources:`, and its
+  `verified:` records the commit it was last checked at. `npx lyceum stale` lists, for each video, the
+  commits that touched those paths since.
 - **It's light.** What's committed is scripts, scene components and narration timings: a few hundred
   kilobytes per video. The caches and MP4s are gitignored.
 - **The costs:** scene changes add noise to code pull requests, and every contributor clones a folder
@@ -42,7 +43,8 @@ people who work on it. Treat them like `docs/`:
 
 In that case, the Ground truth section of `project.md` names the other checkouts by relative path
 (`../api/`, `../web/`). Every author then needs those repositories checked out side by side in the same
-layout, so say so in `project.md`.
+layout, so say so in `project.md`. In a script's `sources:`, a path into one of them starts with its
+directory name (`api/src/cache.ts`), and `lyceum stale` checks it in that checkout.
 
 **The default:** an `explainers/` directory in the repository, for videos about one codebase. Use a
 dedicated repository for videos that cover several repositories or a whole product.

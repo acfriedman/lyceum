@@ -3,6 +3,12 @@
 This guide covers where your videos should live, how to install Lyceum next to your code, and what to know
 before you share a project with a team.
 
+
+
+https://github.com/user-attachments/assets/41ba0f7f-0be0-499b-9eec-8b1decdf7fa2
+
+
+
 ## Keep Lyceum out of your app
 
 A Lyceum project is its own small Node package: a directory with `lyceum.config.json` and a `package.json`

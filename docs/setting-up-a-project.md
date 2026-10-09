@@ -4,9 +4,7 @@ This guide covers where your videos should live, how to install Lyceum next to y
 before you share a project with a team.
 
 
-
-https://github.com/user-attachments/assets/41ba0f7f-0be0-499b-9eec-8b1decdf7fa2
-
+https://github.com/user-attachments/assets/dbc651d6-c02a-4ef4-b393-f2ba8c5d8e0e
 
 
 ## Keep Lyceum out of your app

@@ -221,15 +221,23 @@ npx lyceum typecheck && npx lyceum render <slug>
 ```
 
 This:
-- renders any scene that's still stale;
-- joins the scene videos;
+- renders the title card and any scene that's still stale;
+- joins them;
 - lays the narration clips on the timeline;
 - muxes in the captions.
 
-The output is `videos/<slug>/dist/<slug>.mp4`, with soft English subtitles, plus `dist/<slug>.srt`.
+The output is `videos/<slug>/dist/<slug>.mp4`, plus `dist/<slug>.srt`.
+- **Title card:** every video opens on its frontmatter `title:` for 2.5 s, so the first frame (what a
+  player shows before it starts) names the video. Just after that first frame, a quiet "Sound on"
+  reminder rises in below the title.
+  `npx lyceum stills <slug> _title` shows the card.
+- **Subtitles:** a soft English track by default. `captions: burned` in the script's frontmatter, or
+  `"captions": "burned"` in `lyceum.config.json` for every video, draws them into the picture instead.
+  Either way, scenes are drawn at 87.5% above a band kept for them, so turning them on never covers a
+  scene.
 - **Timing:** from nothing, about 2 minutes per 5 minutes of video; seconds if every scene was already
   rendered.
-- **Check it:** `ffprobe` should show h264, aac and mov_text streams.
+- **Check it:** `ffprobe` should show h264, aac and (unless captions are burned) mov_text streams.
 - **Deliver it:** hand the user the file, attaching it if your interface can, otherwise giving its path.
 
 `--draft` renders a 720p preview of one scene to `dist/scenes/<id>.draft.mp4`. It's for quick looks and

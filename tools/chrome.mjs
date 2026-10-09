@@ -9,7 +9,8 @@ import { existsSync, readFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { createRequire } from "node:module";
 import { basename, extname, join } from "node:path";
-import { ENGINE, HOME, KIT, REGISTRY, ROOT, videoDir } from "./paths.mjs";
+import { ENGINE, HOME, KIT, REGISTRY, ROOT } from "./paths.mjs";
+import { loadVideo, pageOptions } from "./video.mjs";
 
 /** The Chrome for Testing build that draws frames, pinned: text and filters can come out differently in
  *  another build, so render.mjs fingerprints it. */
@@ -126,7 +127,7 @@ async function chrome() {
 }
 
 /** A tab drawing the scene at `url`: `capture(frame, format, quality)` draws a frame and screenshots it. */
-async function openTab(browser, url, width, height, scale) {
+async function openTab(browser, url, width, height, scale, options) {
   const page = await browser.newPage();
   const errors = [];
   page.on("pageerror", (error) => errors.push(error));
@@ -141,7 +142,7 @@ async function openTab(browser, url, width, height, scale) {
     throw new Error(exceptionDetails.exception?.description ?? exceptionDetails.text);
   };
   // A page whose script failed never defined window.lyceum; the script's own error says why.
-  const info = await run("window.lyceum.open()").catch((error) => {
+  const info = await run(`window.lyceum.open(${JSON.stringify(options)})`).catch((error) => {
     throw errors[0] ?? error;
   });
   return {
@@ -162,12 +163,15 @@ async function openTab(browser, url, width, height, scale) {
 }
 
 /**
- * Opens one scene of a video for drawing, in `tabs` tabs at `scale` (1 = the video's own size).
+ * Opens one clip of a video for drawing (a scene, or the title card: `TITLE` in video.mjs), in `tabs` tabs
+ * at `scale` (1 = the video's own size).
  * Resolves to `{ fps, width, height, frames, frame(n, format), stream(list, format), close() }`, where
  * `format` is "png" or "jpeg" and `quality` is the JPEG quality.
  */
 export async function openScene(video, id, { scale = 1, tabs = 1, quality = 92 } = {}) {
-  const { width, height } = JSON.parse(readFileSync(join(videoDir(video), "narration.json"), "utf8"));
+  const v = loadVideo(video);
+  const { width, height } = v.narration;
+  const options = pageOptions(v, id);
   const server = await serve(await bundlePage());
   let browser;
   const close = async () => {
@@ -185,7 +189,7 @@ export async function openScene(video, id, { scale = 1, tabs = 1, quality = 92 }
       waitForInitialPage: false, // there is none: the tabs are opened below
     });
     const url = `http://127.0.0.1:${server.address().port}/index.html?${new URLSearchParams({ video, scene: id })}`;
-    const pages = await Promise.all(Array.from({ length: tabs }, () => openTab(browser, url, width, height, scale)));
+    const pages = await Promise.all(Array.from({ length: tabs }, () => openTab(browser, url, width, height, scale, options)));
     const frame = async (page, n, format) => {
       try {
         return await page.capture(n, format, quality);

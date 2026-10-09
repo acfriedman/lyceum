@@ -28,6 +28,8 @@ status: draft 1
 updated: ${today}
 # Written form → spoken form, applied only to the text sent to the voice.
 pronounce: {}
+# Subtitles: a track viewers turn on, or \`captions: burned\` to draw them into the picture.
+# captions: burned
 # The files this video explains, one per line: \`- path (what the video takes from it)\`.
 # \`lyceum stale\` watches them; \`lyceum stale --mark ${slug}\` records the commit they were checked at.
 sources: []

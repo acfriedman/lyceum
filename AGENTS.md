@@ -13,9 +13,10 @@ A project is any directory with `lyceum.config.json`; it holds the videos, and L
 ```
 bin/lyceum.mjs      the `lyceum` command: dispatches to tools/
 tools/              one file per command, plus paths.mjs (the layout, described once), slots.mjs
-                    (machine-wide memory caps), script.mjs (script.md parsing), align.py (Whisper word
-                    alignment) and chrome.mjs (the renderer: the kit's page, bundled with esbuild and
-                    drawn frame by frame in headless Chrome)
+                    (machine-wide memory caps), script.mjs (script.md parsing), captions.mjs (SubRip),
+                    video.mjs (a video as the renderer sees it: the title card, the scenes, its caption
+                    setting), align.py (Whisper word alignment) and chrome.mjs (the renderer: the kit's
+                    page, bundled with esbuild and drawn frame by frame in headless Chrome)
 kit/                what scenes import as "#kit": timing (cue.tsx), the frame clock, primitives, theme
                     and the stage, plus the page the renderer draws them in (page.tsx)
 fonts/              CMU Serif and JetBrains Mono (SIL Open Font License)

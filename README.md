@@ -72,7 +72,7 @@ explainers/
     scenes/                one component per scene, plus shared.tsx (the video's visual vocabulary)
     narration.json         generated: per-scene audio, word timings, timeline
     captions.srt           generated
-    dist/                  renders: <slug>.mp4, <slug>.srt, scenes/<scene>.mp4 (gitignored)
+    dist/                  renders: <slug>.mp4, <slug>.srt, scenes/<clip>.mp4 (gitignored)
   .cache/                  regenerable, gitignored: voice clips, review scratch
 ```
 
@@ -86,6 +86,7 @@ explainers/
 | `voice` | OpenAI `cedar` | default voice, e.g. `{ "provider": "elevenlabs" }` or `{ "id": "marin" }` |
 | `pronounce` | `{}` | written → spoken, for every script (a script's own map wins) |
 | `allowSpoken` | `[]` | acronyms the narration check should allow |
+| `captions` | `"track"` | `"track"`: subtitles viewers turn on; `"burned"`: drawn into the picture (a script's `captions:` wins) |
 
 ## Licensing
 

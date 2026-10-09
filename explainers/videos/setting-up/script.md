@@ -6,6 +6,7 @@ updated: 2026-10-08
 pronounce: {}
 sources:
   - docs/setting-up-a-project.md (the guide this video follows)
+  - tools/stale.mjs (spotting stale videos: sources, verified:, and the commits since)
   - package.json (Lyceum's dependencies: react 19, puppeteer-core, esbuild, typescript 7)
   - tools/chrome.mjs (the renderer loads the project's own React when it can resolve one)
   - tools/init.mjs (what init creates: lyceum.config.json, project.md, videos/index.ts, package.json, tsconfig.json, .gitignore; its printed output)
@@ -13,6 +14,7 @@ sources:
   - tools/narrate.mjs (keys from the environment or the nearest .env; clips cached in .cache/)
   - tools/stills.mjs and tools/render.mjs (stills need only narration.json; render needs the clips in .cache/public)
   - explainers/ (a real in-repository project: .gitignore, what-is-lyceum's committed files total 132 KB)
+verified: "787fedfc1d0e"
 ---
 
 <!--
@@ -82,9 +84,10 @@ linting and continuous integration. It installs and checks itself.
 > Visual: The tree: `your-app/` with `src/` and `explainers/` side by side. On "ground truth",
 > `project.md` opens to its "Ground truth" heading with the line "the code in `..`" and an arrow from
 > `explainers/` to `src/`. On "same commit", a commit chip, `a1b2c3d`, spans both folders. On "a diff",
-> a script's frontmatter shows `sources: src/cache/`, and below it the command
-> `git log a1b2c3d.. -- src/cache/` lists two commits, the video's card gaining a "may be stale" tag.
-> (There's no stale command yet: this is a plain git query.) On "it's light", a bar: "what-is-lyceum, committed: 132 KB" (script, scenes, timings), beside
+> a script's frontmatter shows `sources: src/cache/`; on "since the video", its `verified: a1b2c3d`
+> line highlights and the video's card gains a "may be stale" tag. Below it the command
+> `npx lyceum stale cache` reports the video stale and lists two commits (simplified from its real
+> output). On "it's light", a bar: "what-is-lyceum, committed: 132 KB" (script, scenes, timings), beside
 > greyed-out `.cache/` and `dist/` labelled "gitignored". On "noise", a pull request card, "Fix cache
 > eviction", lists its changed files; one of them is a scene file under `explainers/`, dimmed.
 

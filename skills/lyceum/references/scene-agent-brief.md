@@ -65,7 +65,8 @@ the previous scene leaves on screen and what the next one picks up; how it ends>
   - Nothing overlaps unintentionally.
   - Never leave the screen static or empty for more than about 6 s.
   - The frame is 1920×1080. Keep content inside an 80 px margin; the top-left corner (y < 110) is
-    reserved for the chapter tag.
+    reserved for the chapter tag. (The video draws the whole frame at 87.5% above a subtitle band;
+    lay out at full size and ignore that.)
 - **Text:**
   - Minimum text size is 26 px. A shrunken recall of an earlier element may go smaller.
   - Labels are short. Never put narration sentences on screen.

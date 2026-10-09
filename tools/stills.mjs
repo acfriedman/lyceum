@@ -4,15 +4,19 @@
 //
 //   lyceum stills <video> <scene-id> [--every <seconds> | --at <s1,s2,…>]
 //
+// `_title` as the scene id shows the title card. Frames are drawn as the video shows them: the stage
+// above the subtitle band, with the captions in it when they're burned in.
+//
 // Output: .cache/work/<video>/stills/<scene-id>.png. The individual frames are temporary.
 
 import { openScene } from "./chrome.mjs";
 import { holdSlot } from "./slots.mjs";
 import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
-import { ROOT, videoDir, videoSlug, workDir } from "./paths.mjs";
+import { ROOT, videoSlug, workDir } from "./paths.mjs";
+import { loadVideo } from "./video.mjs";
 
 const argv = process.argv.slice(2);
 const opt = (name) => {
@@ -25,8 +29,8 @@ if (!videoArg || !scene || scene.startsWith("--")) {
   process.exit(2);
 }
 const video = videoSlug(videoArg);
-const narration = JSON.parse(readFileSync(join(videoDir(video), "narration.json"), "utf8"));
-const timing = narration.scenes.find((s) => s.id === scene);
+const { narration, clips } = loadVideo(video);
+const timing = clips.find((c) => c.id === scene);
 if (!timing) {
   console.error(`${video}: no scene "${scene}"`);
   process.exit(2);

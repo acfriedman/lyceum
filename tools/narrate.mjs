@@ -25,6 +25,7 @@ import { promisify } from "node:util";
 import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { toSrt } from "./captions.mjs";
 import { parseScript, spokenText } from "./script.mjs";
 import { CACHE as CACHE_ROOT, CONFIG, HOME, ROOT, preparePublic, videoDir as resolveVideoDir, videoSlug } from "./paths.mjs";
 
@@ -435,11 +436,6 @@ async function main() {
 
 /** SubRip captions, a sentence (or ~12 words) per cue, timed on the composition's timeline. */
 function captions({ fps, scenes }) {
-  const stamp = (seconds) => {
-    const ms = Math.max(0, Math.round(seconds * 1000));
-    const pad = (n, w = 2) => String(n).padStart(w, "0");
-    return `${pad(Math.floor(ms / 3600000))}:${pad(Math.floor(ms / 60000) % 60)}:${pad(Math.floor(ms / 1000) % 60)},${pad(ms % 1000, 3)}`;
-  };
   const cues = [];
   for (const scene of scenes) {
     const offset = (scene.from + scene.leadInFrames) / fps;
@@ -455,7 +451,7 @@ function captions({ fps, scenes }) {
     }
     flush();
   }
-  return cues.map((c, i) => `${i + 1}\n${stamp(c.s)} --> ${stamp(c.e)}\n${c.text}\n`).join("\n");
+  return toSrt(cues);
 }
 
 main().catch((error) => {

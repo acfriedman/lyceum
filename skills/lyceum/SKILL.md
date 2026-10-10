@@ -145,6 +145,9 @@ over it. Never switch providers silently.
 `voice: { provider: recorded }` goes in the frontmatter, and nothing is synthesized:
 - **Write the script in their words,** the way they talk. The script must match what they'll say, so the
   no-acronyms rule doesn't apply, numbers can be written as digits, and `pronounce` is ignored.
+- **Shape it to be read:** write each scene's narration as a bulleted list, a line per breath. The bullets
+  are only its shape (the lines run on as one paragraph), but each one ends where the reader pauses,
+  which makes reading it sound natural.
 - **The gate matters more:** recording is the expensive step, so settle the script before they record.
 - **They record the whole talk in one take** to `videos/<slug>/recordings/_talk.m4a` (or `.wav`, `.mp3`,
   a phone's `.mov`…), reading the narration as written. Give them the narration to read from, scene by
@@ -159,7 +162,9 @@ over it. Never switch providers silently.
   every scene on its own, with no talk, works too.) Takes are cached by their contents, so re-recording
   or editing one scene re-processes only that scene, for free.
 - **"doesn't say all of the script"** lists, per scene, a run of script words that wasn't heard. The user
-  records those scenes on their own, or you change the narration to what they actually said.
+  records those scenes on their own, or you change the narration to what they actually said:
+  `npx lyceum transcribe <slug>` (`--scene <id>` for one scene's take) writes down what each take says,
+  in `.cache/work/<slug>/transcript.md`, to compare with the script.
 - **"heard …, which isn't in the script"** is a warning: they said something unscripted, and the
   captions won't show it. Offer to add it to the narration.
 - Recordings are source material, like the script: they belong in version control, not the cache.

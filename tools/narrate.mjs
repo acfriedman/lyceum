@@ -25,14 +25,14 @@
 
 import { createHash } from "node:crypto";
 import { execFile, execFileSync, spawnSync } from "node:child_process";
-import { withSlot } from "./slots.mjs";
 import { promisify } from "node:util";
 import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { basename, dirname, extname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import { toSrt } from "./captions.mjs";
+import { RECORDING_TYPES, TALK, fileHash, probeDuration, recordings, recordingsDir, whisperPython, whisperSlot } from "./takes.mjs";
 import { parseScript, spokenText } from "./script.mjs";
-import { CACHE as CACHE_ROOT, CONFIG, HOME, ROOT, preparePublic, videoDir as resolveVideoDir, videoSlug } from "./paths.mjs";
+import { CACHE as CACHE_ROOT, CONFIG, ROOT, preparePublic, videoDir as resolveVideoDir, videoSlug } from "./paths.mjs";
 
 const CACHE = join(CACHE_ROOT, "narration");
 
@@ -129,22 +129,6 @@ function wordsFromAlignment({ characters, character_start_times_seconds: starts,
   return words;
 }
 
-/** The Python that runs align.py: a venv with mlx-whisper, created with uv on first use. */
-function alignerPython() {
-  const venv = join(HOME, "py");
-  const python = join(venv, "bin", "python");
-  if (!existsSync(python)) {
-    console.log(`  creating ${venv} (mlx-whisper) for word alignment…`);
-    execFileSync("uv", ["venv", "-q", "--python", "3.12", venv], { stdio: "inherit" });
-    execFileSync("uv", ["pip", "install", "-q", "mlx-whisper"], { stdio: "inherit", env: { ...process.env, VIRTUAL_ENV: venv } });
-  }
-  return python;
-}
-
-// Whisper loads its model per process, so alignments take machine-wide slots (see slots.mjs): the cap
-// holds however many narrations run at once.
-const whisperSlot = (task) => withSlot("whisper", task);
-
 /** Word timings for a clip, from local Whisper matched back to the script's words, plus the script
  *  words Whisper never heard (`missing`) and what it heard that the script doesn't say (`extra`).
  *  Paths are unique per clip, so calls may run concurrently. */
@@ -152,17 +136,13 @@ async function align(text, audioPath, sentinel) {
   const textPath = audioPath.replace(/\.\w+$/, ".txt");
   writeFileSync(textPath, text);
   const { stdout } = await whisperSlot(() =>
-    promisify(execFile)(alignerPython(), [join(dirname(fileURLToPath(import.meta.url)), "align.py"), audioPath, textPath, ...(sentinel ? [sentinel] : [])], {
+    promisify(execFile)(whisperPython(), [join(dirname(fileURLToPath(import.meta.url)), "align.py"), audioPath, textPath, ...(sentinel ? [sentinel] : [])], {
       maxBuffer: 16 * 1024 * 1024,
     }),
   );
   return JSON.parse(String(stdout));
 }
 
-function probeDuration(file) {
-  const out = execFileSync("ffprobe", ["-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", file]);
-  return Number(String(out).trim());
-}
 
 async function synthesizeElevenLabs(text, voice, mp3Path) {
   const response = await fetch(
@@ -315,32 +295,8 @@ async function synthesizeSay(text, voice, mp3Path) {
 // A take is cut this far either side of its first and last words, so the silence before and after
 // speaking doesn't count, and the timeline's lead-in and tail space every scene alike.
 const RECORDING_PAD = { before: 0.25, after: 0.4 };
-// What a take can be: anything ffmpeg reads with an audio track, a phone's video included.
-const RECORDING_TYPES = new Set([".wav", ".m4a", ".mp3", ".aif", ".aiff", ".caf", ".flac", ".ogg", ".opus", ".webm", ".mp4", ".mov"]);
-// The whole talk in one take: recordings/_talk.m4a. (Scene ids can't start with "_".) A scene's own take
-// wins over its part of the talk, so a fluffed scene is fixed by recording just that scene again.
-const TALK = "_talk";
 // Bump when the way a talk is aligned or split changes: its alignment is cached by take and script.
 const TALK_ALIGNER = "talk@1";
-
-/** The video's recordings/ directory: the talk, and takes named for the scenes they narrate. */
-const recordingsDir = (videoDir) => join(videoDir, "recordings");
-
-const fileHash = (path) => createHash("sha256").update(readFileSync(path)).digest("hex");
-
-/** Every take in recordings/, by scene id (or TALK). Two takes of one scene is an error: which one? */
-function recordings(videoDir) {
-  const dir = recordingsDir(videoDir);
-  const takes = new Map();
-  if (!existsSync(dir)) return takes;
-  for (const file of readdirSync(dir).sort()) {
-    if (!RECORDING_TYPES.has(extname(file).toLowerCase())) continue;
-    const id = basename(file, extname(file));
-    if (takes.has(id)) throw new Error(`recordings/ has two takes of "${id}": ${basename(takes.get(id))} and ${file}`);
-    takes.set(id, join(dir, file));
-  }
-  return takes;
-}
 
 /** Word timings for a take, from Whisper on a mono copy of its audio (in the cache, never beside it). */
 async function alignTake(path, text, scratch) {
@@ -493,7 +449,8 @@ async function planRecordings(videoDir, scenes, spoken, wanted) {
   if (problems.length) {
     throw new Error(
       `${relative(ROOT, talk)} doesn't say all of the script:\n${problems.join("\n")}\n` +
-        `Record each of these scenes on its own, to ${label}/<scene-id>.m4a, or change its narration in script.md to what you said.`,
+        `Record each of these scenes on its own, to ${label}/<scene-id>.m4a, or change its narration in script.md to what you said ` +
+        `("lyceum transcribe <video>" writes it down).`,
     );
   }
   return sources;
@@ -517,7 +474,7 @@ async function synthesizeRecorded(text, voice, mp3Path, label, source) {
     if (aligned.missing.length) {
       throw new Error(
         `${label}: the recording skips "${aligned.missing.join(" ")}". Record the scene again, or change its narration in ` +
-          `script.md to what you said.`,
+          `script.md to what you said ("lyceum transcribe <video> --scene ${label}" writes it down).`,
       );
     }
     ({ words, extra } = aligned);
@@ -610,7 +567,7 @@ async function main() {
   }
 
   // Every scene that needs voicing is voiced at once; each scene's paragraphs run concurrently too.
-  if (provider !== "elevenlabs") alignerPython(); // create the venv once, before any parallel use
+  if (provider !== "elevenlabs") whisperPython(); // create the venv once, before any parallel use
   const out = await Promise.all(
     scenes.map(async (scene) => {
       const text = spoken(scene);

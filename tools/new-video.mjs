@@ -44,7 +44,8 @@ sources: []
 Format: one \`## NN · id — Title\` per scene. \`> Visual:\` lines describe the animation; every other
 paragraph is narration, spoken in order. The narration is the only text sent to TTS, so it is
 written for the ear: no identifiers that read badly aloud, short sentences. The intent above the
-first scene is never narrated.
+first scene is never narrated. Reading it yourself? Write the narration as a bulleted list, a line per
+breath: the bullets are only its shape, and each one is a natural place to pause.
 -->
 
 # Intent

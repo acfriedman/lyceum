@@ -11,7 +11,7 @@
    "id": "my-voice",
    "title": "This voice is mine",
    "audio": "your-own-voice/my-voice.mp3",
-   "hash": "037ccb842e635522",
+   "hash": "15b7b37f46ebd54e",
    "duration": 20.67,
    "take": {
     "file": "_talk.m4a",
@@ -268,7 +268,7 @@
    "id": "not-a-script",
    "title": "A person isn't a script",
    "audio": "your-own-voice/not-a-script.mp3",
-   "hash": "40c741c527ffeab6",
+   "hash": "aa9550baa371ea21",
    "duration": 24.22,
    "take": {
     "file": "_talk.m4a",
@@ -565,7 +565,7 @@
    "id": "one-take",
    "title": "One take, cut into scenes",
    "audio": "your-own-voice/one-take.mp3",
-   "hash": "7fedda2706a87127",
+   "hash": "1bd0e385ee3e7d11",
    "duration": 25.19,
    "take": {
     "file": "_talk.m4a",
@@ -867,7 +867,7 @@
    "id": "fix-a-scene",
    "title": "Fix one scene",
    "audio": "your-own-voice/fix-a-scene.mp3",
-   "hash": "5418aa86dc7a69ee",
+   "hash": "ec1166fe391040f5",
    "duration": 21.37,
    "take": {
     "file": "_talk.m4a",
@@ -1159,7 +1159,7 @@
    "id": "three-steps",
    "title": "Three steps",
    "audio": "your-own-voice/three-steps.mp3",
-   "hash": "840f3e3d499ddb04",
+   "hash": "fc2df37e878354b9",
    "duration": 23.250045,
    "take": {
     "file": "_talk.m4a",

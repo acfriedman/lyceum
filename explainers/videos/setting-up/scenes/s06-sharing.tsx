@@ -50,7 +50,7 @@ const Laptop: React.FC<{
           height: h,
           borderRadius: Math.min(18, h * 0.12),
           border: `3px solid ${color}`,
-          background: "#141418",
+          background: C.surface,
         }}
       />
       <div
@@ -105,7 +105,7 @@ const ContactSheet: React.FC<{ at: number; out: number }> = ({ at, out }) => {
               height: GRID.th,
               borderRadius: 6,
               border: `2px solid ${C.faint}`,
-              background: "#16161A",
+              background: C.surface,
               opacity: p,
               transform: `scale(${0.85 + 0.15 * p})`,
             }}
@@ -152,7 +152,7 @@ const RenderButton: React.FC<{ x: number; y: number; at: number; off: number; ou
         height: 62,
         borderRadius: 12,
         border: `3px solid ${mixHex(ROLE.command, C.faint)}`,
-        background: g < 0.5 ? `${ROLE.command}22` : "#1A1A1E",
+        background: g < 0.5 ? `${ROLE.command}22` : C.surface,
         fontFamily: FONT.mono,
         fontSize: 30,
         lineHeight: "56px",

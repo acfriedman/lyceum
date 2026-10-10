@@ -34,7 +34,7 @@ const Player: React.FC<{ opacity: number; from: number }> = ({ opacity, from }) 
         opacity,
         borderRadius: 10,
         border: `2px solid ${C.faint}`,
-        background: "#050507",
+        background: C.sunken,
         overflow: "hidden",
       }}
     >

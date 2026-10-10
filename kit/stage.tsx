@@ -6,7 +6,7 @@ import React from "react";
 import { useClock } from "./clock";
 import { SceneProvider, type SceneTiming } from "./cue";
 import { prog } from "./anim";
-import { C, FONT } from "./theme";
+import { C, FONT, theme } from "./theme";
 import { videos } from "@lyceum/videos";
 
 export type Narration = {
@@ -90,6 +90,7 @@ export const TitleCard: React.FC<{ title: string; frames: number }> = ({ title, 
     <Fill style={{ background: C.bg, alignItems: "center", justifyContent: "center" }}>
       <div style={{ maxWidth: 1500, textAlign: "center", textWrap: "balance", fontFamily: FONT.serif, fontSize: 96, lineHeight: 1.2, color: C.text, opacity: 1 - fadeOut }}>
         {title}
+        {theme().titleRule && <div style={{ margin: "44px auto 0", width: 180, height: 5, background: C.blue }} />}
       </div>
     </Fill>
   );

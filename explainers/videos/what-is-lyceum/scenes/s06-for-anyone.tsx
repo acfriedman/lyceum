@@ -149,7 +149,7 @@ const RoleCard: React.FC<{ i: number; at: number; out: number }> = ({ i, at, out
         height: CARD.h,
         borderRadius: 18,
         border: `2px solid ${C.faint}`,
-        background: "#16161A",
+        background: C.surface,
         opacity: o,
         transform: `translateY(${(1 - p) * 70}px) rotate(${(1 - p) * tilt}deg)`,
         transformOrigin: "50% 100%",

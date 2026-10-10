@@ -25,7 +25,7 @@ const DayTile: React.FC<{ x: number; y: number; day: number; label: string; at: 
         height: h,
         borderRadius: 14,
         overflow: "hidden",
-        background: "#18181C",
+        background: C.surface,
         border: `2px solid ${C.faint}`,
         opacity: o,
         transform: `translateY(${(1 - o) * 24}px)`,
@@ -114,7 +114,7 @@ export const GoodExplanations: React.FC = () => {
           }}
         >
           <Svg>
-            <Box x={VIDEO.x} y={VIDEO.y} w={VIDEO.w} h={VIDEO.h} r={24} at={watched} dur={0.9} color={C.faint} width={3} fill="#FFFFFF05" />
+            <Box x={VIDEO.x} y={VIDEO.y} w={VIDEO.w} h={VIDEO.h} r={24} at={watched} dur={0.9} color={C.faint} width={3} fill={`${C.text}05`} />
             <g opacity={barO}>
               <line x1={left + 40} y1={barY} x2={left + VIDEO.w - 40} y2={barY} stroke={C.faint} strokeWidth={4} strokeLinecap="round" />
               <line x1={left + 40} y1={barY} x2={left + 40 + played * (VIDEO.w - 80)} y2={barY} stroke={C.dim} strokeWidth={4} strokeLinecap="round" />

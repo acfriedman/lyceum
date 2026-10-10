@@ -59,10 +59,11 @@ export function findProject(from = process.env.LYCEUM_PROJECT ?? process.cwd()) 
  *   allowSpoken  words the acronym check lets through, for every script
  *   captions     "track" (a subtitle track viewers turn on) or "burned" (drawn into the picture), for
  *                every video (a script's own `captions:` wins)
+ *   theme        the kit theme every video is drawn in: "dark" or "paper" (a script's own `theme:` wins)
  */
 export function loadConfig(root) {
   const raw = JSON.parse(readFileSync(join(root, CONFIG_FILE), "utf8"));
-  const config = { videos: "videos", cache: ".cache", pronounce: {}, allowSpoken: [], captions: "track", ...raw };
+  const config = { videos: "videos", cache: ".cache", pronounce: {}, allowSpoken: [], captions: "track", theme: "dark", ...raw };
   config.project ??= raw.brief ?? "project.md";
   return config;
 }

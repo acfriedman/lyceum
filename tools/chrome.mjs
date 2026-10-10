@@ -188,7 +188,7 @@ export async function openScene(video, id, { scale = 1, tabs = 1, quality = 92 }
       defaultViewport: null,
       waitForInitialPage: false, // there is none: the tabs are opened below
     });
-    const url = `http://127.0.0.1:${server.address().port}/index.html?${new URLSearchParams({ video, scene: id })}`;
+    const url = `http://127.0.0.1:${server.address().port}/index.html?${new URLSearchParams({ video, scene: id, theme: v.theme })}`;
     const pages = await Promise.all(Array.from({ length: tabs }, () => openTab(browser, url, width, height, scale, options)));
     const frame = async (page, n, format) => {
       try {

@@ -33,7 +33,7 @@ const AskBox: React.FC<{ y: number; at: number; textAt: number; topics: [string,
         height: h,
         borderRadius: 50,
         border: `2px solid ${C.faint}`,
-        background: "#16161A",
+        background: C.surface,
         opacity: o * dim,
         transform: `translateY(${(1 - o) * 16}px)`,
         fontFamily: FONT.serif,
@@ -80,7 +80,7 @@ const Source: React.FC<{ x: number; y: number; text: string; at: number; out: nu
         padding: "0 18px",
         borderRadius: 22,
         border: `2px solid ${C.faint}`,
-        background: "#1A1A1F",
+        background: C.surface,
         display: "flex",
         alignItems: "center",
         fontFamily: FONT.mono,
@@ -101,7 +101,7 @@ const Thumb: React.FC<{ parts: number; w: number; h: number }> = ({ parts, w, h 
   const colours = [ROLE.request, ROLE.cache, ROLE.database];
   const xs = [w * 0.2, w * 0.5, w * 0.8];
   return (
-    <svg width={w} height={h} style={{ display: "block", borderRadius: 4, background: "#0B0B0D", border: `1px solid ${C.faint}` }}>
+    <svg width={w} height={h} style={{ display: "block", borderRadius: 4, background: C.sunken, border: `1px solid ${C.faint}` }}>
       {[0, 1].map((i) => (i + 1 < parts ? <line key={i} x1={xs[i] + 6} y1={h / 2} x2={xs[i + 1] - 6} y2={h / 2} stroke={C.dim} strokeWidth={1.5} /> : null))}
       {colours.slice(0, parts).map((c, i) => (
         <rect key={i} x={xs[i] - 6} y={h / 2 - 5} width={12} height={10} rx={2} fill="none" stroke={c} strokeWidth={1.8} />
@@ -130,7 +130,7 @@ const ContactSheet: React.FC<{ x: number; y: number; at: number }> = ({ x, y, at
           height: h,
           padding: pad,
           borderRadius: 8,
-          background: "#18181C",
+          background: C.surface,
           border: `2px solid ${C.faint}`,
           display: "grid",
           gridTemplateColumns: `repeat(3, ${tw}px)`,
@@ -167,7 +167,7 @@ const VideoCard: React.FC<{ x: number; y: number; at: number }> = ({ x, y, at })
           width: w,
           height: h,
           borderRadius: 10,
-          background: "#16161A",
+          background: C.surface,
           border: `2px solid ${ROLE.agent}`,
           boxShadow: `0 0 ${24 * o}px ${ROLE.agent}55`,
         }}

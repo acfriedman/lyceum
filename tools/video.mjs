@@ -23,6 +23,7 @@ const CAPTIONS = ["track", "burned"];
  *   narration  narration.json as narrate wrote it
  *   title      the script's `title:` (else the slug), shown on the title card
  *   captions   "track" or "burned": the script's `captions:`, else the project's
+ *   theme      the kit theme it's drawn in (kit/theme.ts): the script's `theme:`, else the project's
  *   cues       captions.srt's cues, on the narration's timeline (seconds, before the title card)
  *   lead       the title card's length in frames: everything after it starts that much later
  *   clips      what the video is drawn as, in order: `{ id, frames, audio, leadInFrames }`, the
@@ -44,6 +45,7 @@ export function loadVideo(video) {
     narration,
     title: String(meta.title ?? slug),
     captions,
+    theme: String(meta.theme ?? CONFIG.theme),
     cues: parseSrt(readFileSync(join(dir, "captions.srt"), "utf8")),
     lead,
     clips: [{ id: TITLE, frames: lead, audio: null, leadInFrames: 0 }, ...narration.scenes],

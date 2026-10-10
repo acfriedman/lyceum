@@ -13,9 +13,9 @@
 //
 // A scene is stale when its fingerprint changes: its own file, the non-scene files in its scenes/
 // directory (shared.tsx and helpers), the kit, its narration (audio, words, timeline), its number
-// and title, its burned-in captions, and the render settings (the Chrome build among them). The title
-// card is stale when the title, the kit or the settings change. Rendering scenes as they pass
-// review means the final call only joins them. Each scene file carries its own audio, so it doubles as
+// and title, its burned-in captions, its theme, and the render settings (the Chrome build among them).
+// The title card is stale when the title, the theme, the kit or the settings change. Rendering scenes as
+// they pass review means the final call only joins them. Each scene file carries its own audio, so it doubles as
 // a preview; the video's audio track is rebuilt from the narration clips, which is exact and keeps the
 // join a stream copy.
 
@@ -143,7 +143,7 @@ function lane(clip) {
 function fingerprint(id) {
   const kit = readdirSync(join(ENGINE, "kit")).sort().map((f) => join(ENGINE, "kit", f));
   const hash = createHash("sha256");
-  const shape = { SETTINGS, fps: narration.fps, width: narration.width, height: narration.height, page: pageOptions(v, id) };
+  const shape = { SETTINGS, fps: narration.fps, width: narration.width, height: narration.height, theme: v.theme, page: pageOptions(v, id) };
   if (id === TITLE) {
     hash.update(JSON.stringify(shape));
     for (const path of kit) hash.update(relative(ENGINE, path)).update(readFileSync(path));

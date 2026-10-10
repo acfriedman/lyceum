@@ -59,7 +59,9 @@ the previous scene leaves on screen and what the next one picks up; how it ends>
   names it.
 
 ## Style rules
-- **The look:** a dark canvas, few things on screen at once, generous space.
+- **The look:** few things on screen at once, generous space.
+- **Colour:** take every colour from `C` or `shared.tsx`, never a hex value: the video's theme (dark, or
+  the light `paper`) sets them. A panel is `C.surface`, a recess `C.sunken`, a faint wash `${C.text}06`.
 - **Attention:** fade stale elements out (`out=`) so attention follows the narration.
 - **Layout:**
   - Nothing overlaps unintentionally.
@@ -83,7 +85,7 @@ the previous scene leaves on screen and what the next one picks up; how it ends>
 - Run stills **once**, when the scene is written:
   - command: `npx lyceum stills <slug> <id> --at <10–12 comma-separated seconds>`;
   - cover every cue and the end, sampling the end about 0.7 s before the last frame, because every scene
-    fades through black over its last 0.45 s;
+    fades out over its last 0.45 s;
   - it may wait minutes for its turn, so give it a long timeout, and never run it in the background or
     twice at once.
 - Then look at `.cache/work/<slug>/stills/<id>.png`. Fix any overlap, clipping, illegible text, empty

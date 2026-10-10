@@ -226,7 +226,7 @@ export const InSync: React.FC = () => {
               height: PLAYER.h,
               borderRadius: 18,
               border: `2px solid ${C.faint}`,
-              background: "#141418",
+              background: C.surface,
               transform: `translateY(${(1 - playerO) * 16}px)`,
             }}
           />
@@ -281,7 +281,7 @@ export const InSync: React.FC = () => {
             <Svg>
               <g opacity={pinO} transform={`translate(${segCentre}, ${SCRUB.y - 12 - (1 - pinDrop) * 70})`}>
                 <path d="M0 0 L-11 -24 A15 15 0 1 1 11 -24 Z" fill={ROLE.you} />
-                <circle cx={0} cy={-32} r={6} fill="#141418" />
+                <circle cx={0} cy={-32} r={6} fill={C.surface} />
               </g>
             </Svg>
           )}
@@ -297,7 +297,7 @@ export const InSync: React.FC = () => {
                 height: 62,
                 borderRadius: 14,
                 border: `2px solid ${ROLE.you}`,
-                background: "#221C14",
+                background: `color-mix(in srgb, ${ROLE.you} 9%, ${C.bg})`,
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
@@ -316,7 +316,7 @@ export const InSync: React.FC = () => {
                   bottom: -10,
                   width: 16,
                   height: 16,
-                  background: "#221C14",
+                  background: `color-mix(in srgb, ${ROLE.you} 9%, ${C.bg})`,
                   borderRight: `2px solid ${ROLE.you}`,
                   borderBottom: `2px solid ${ROLE.you}`,
                   transform: "rotate(45deg)",

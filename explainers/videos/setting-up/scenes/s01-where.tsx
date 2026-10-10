@@ -28,7 +28,7 @@ const LooseScript: React.FC<{ at: number; out: number }> = ({ at, out }) => {
   const bob = Math.sin((frame - at) / fps * 1.6) * 6;
   return (
     <div style={{ position: "absolute", left: 1250 + drift, top: 380 + bob, opacity: o }}>
-      <div style={{ width: 220, height: 280, borderRadius: 12, border: `2px solid ${C.dim}`, background: "#16161A", padding: "22px 24px" }}>
+      <div style={{ width: 220, height: 280, borderRadius: 12, border: `2px solid ${C.dim}`, background: C.surface, padding: "22px 24px" }}>
         <div style={{ fontFamily: FONT.mono, fontSize: 22, color: C.gold, marginBottom: 18 }}>script.md</div>
         {[150, 170, 120, 165, 140, 90].map((w, i) => (
           <div key={i} style={{ width: w, height: 8, borderRadius: 4, background: C.faint, marginBottom: 16 }} />

@@ -113,6 +113,7 @@ wait. They may waive review ("I trust your script"). Respect that, but still sho
 npx lyceum narrate <slug>                         # OpenAI gpt-4o-mini-tts, voice "cedar" (default)
 npx lyceum narrate <slug> --provider say          # free macOS draft voice
 npx lyceum narrate <slug> --provider elevenlabs   # ElevenLabs (word timings from the API)
+npx lyceum narrate <slug> --provider recorded     # the user's own recordings (see below)
 npx lyceum narrate <slug> --only <scene>          # one scene
 ```
 
@@ -139,6 +140,26 @@ Why the OpenAI path is more involved:
 
 A "paragraph N still missing words" error after retries is a real failure: report it, and don't paper
 over it. Never switch providers silently.
+
+**The user's own voice.** Some users narrate their videos themselves, often presentations. Then
+`voice: { provider: recorded }` goes in the frontmatter, and nothing is synthesized:
+- **Write the script in their words,** the way they talk. The script must match what they'll say, so the
+  no-acronyms rule doesn't apply, numbers can be written as digits, and `pronounce` is ignored.
+- **The gate matters more:** recording is the expensive step, so settle the script before they record.
+- **They record the whole talk in one take** to `videos/<slug>/recordings/_talk.m4a` (or `.wav`, `.mp3`,
+  a phone's `.mov`…), reading the narration as written. Give them the narration to read from, scene by
+  scene. Pauses and asides between scenes ("next slide") are fine: they're cut out.
+- **`narrate`** aligns the talk against the whole script with local Whisper, splits it into scenes in
+  the pauses between them, trims each, and brings every scene to the same loudness.
+- **To fix a scene,** they record just that scene to `recordings/<scene-id>.m4a`, which wins over its
+  part of the talk. The same goes for a talk that stops early: record the rest scene by scene. (Recording
+  every scene on its own, with no talk, works too.) Takes are cached by their contents, so re-recording
+  or editing one scene re-processes only that scene, for free.
+- **"doesn't say all of the script"** lists, per scene, a run of script words that wasn't heard. The user
+  records those scenes on their own, or you change the narration to what they actually said.
+- **"heard …, which isn't in the script"** is a warning: they said something unscripted, and the
+  captions won't show it. Offer to add it to the narration.
+- Recordings are source material, like the script: they belong in version control, not the cache.
 
 **Check the endings.** Narration is cheap, so listening is the bottleneck, not credits. After narrating,
 transcribe each scene and compare its last words with the script, so no clip ends early. Use Whisper with

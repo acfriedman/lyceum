@@ -32,6 +32,9 @@ pronounce: {}
 # captions: burned
 # The look: the dark canvas, or \`theme: paper\`, a light, formal look for presentations.
 # theme: paper
+# Your own voice instead of text-to-speech: the whole talk in recordings/_talk.m4a, and any scene
+# recorded again on its own in recordings/<scene-id>.m4a.
+# voice: { provider: recorded }
 # The files this video explains, one per line: \`- path (what the video takes from it)\`.
 # \`lyceum stale\` watches them; \`lyceum stale --mark ${slug}\` records the commit they were checked at.
 sources: []

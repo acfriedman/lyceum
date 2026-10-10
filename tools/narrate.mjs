@@ -27,7 +27,7 @@ import { createHash } from "node:crypto";
 import { execFile, execFileSync, spawnSync } from "node:child_process";
 import { withSlot } from "./slots.mjs";
 import { promisify } from "node:util";
-import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { basename, dirname, extname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import { toSrt } from "./captions.mjs";
@@ -68,8 +68,9 @@ const VOICES = {
     seed: 7,
   },
   say: { provider: "say", id: "Samantha", rate: 180 },
-  // Bump `processing` when the way takes are cut changes: each clip is cached by its take's contents.
-  recorded: { provider: "recorded", id: "recording", processing: "trim@1" },
+  // Bump `processing` when the way takes are cut or cleaned changes: each clip is cached by its take's
+  // contents. `denoise: false` in a script's `voice:` keeps a take's room noise as recorded.
+  recorded: { provider: "recorded", id: "recording", processing: "trim+denoise@3", denoise: true },
 };
 
 /** The voice a run uses: `--provider` wins, then the script's `voice:`, then OpenAI. */
@@ -352,6 +353,57 @@ async function alignTake(path, text, scratch) {
   }
 }
 
+// A room's noise under a take (rumble, hum, hiss) is taken out of the whole take once, before it's cut:
+// a high-pass below the voice, then a spectral denoiser that learns the noise from the take's quietest
+// pause. Leveling a quiet take raises its noise with it, so this matters most for a home recording.
+const DENOISE = { highpass: 70, reduction: 20, pause: 0.4, sample: 2 };
+
+/** The level of seconds `a`–`b` of a take, in dB, after the high-pass (null for digital silence). */
+function pauseLevel(path, [a, b]) {
+  const { stderr } = spawnSync(
+    "ffmpeg",
+    ["-hide_banner", "-nostats", "-ss", a.toFixed(3), "-t", (b - a).toFixed(3), "-i", path, "-vn", "-af",
+      `highpass=f=${DENOISE.highpass},astats=measure_perchannel=none:measure_overall=RMS_level`, "-f", "null", "-"],
+    { encoding: "utf8" },
+  );
+  const level = Number(stderr.match(/RMS level dB: (-?[\d.]+)/)?.[1]);
+  return Number.isFinite(level) ? level : null;
+}
+
+/** The take's quietest pause, as seconds [from, to], to learn its noise from: the stretches before,
+ *  between and after its words, long enough to measure (a breath is louder than the room, so the
+ *  quietest one is the room alone). Null when there's none. */
+function quietestPause(path, words) {
+  const duration = probeDuration(path);
+  return [[0, words[0].s], ...words.slice(1).map((w, i) => [words[i].e, w.s]), [words.at(-1).e, duration]]
+    .map(([a, b]) => [a + 0.1, Math.min(b - 0.1, a + 0.1 + DENOISE.sample)])
+    .filter(([a, b]) => b - a >= DENOISE.pause)
+    .sort((x, y) => y[1] - y[0] - (x[1] - x[0]))
+    .slice(0, 8)
+    .map((pause) => ({ pause, level: pauseLevel(path, pause) }))
+    .filter((p) => p.level !== null)
+    .sort((x, y) => x.level - y.level)[0]?.pause ?? null;
+}
+
+/** A take with its room noise taken out, cached by its contents (`hash`); `words` are its words, timed in
+ *  the take. Without a pause to learn the noise from, only the high-pass is applied. */
+function cleanTake(path, hash, words) {
+  const out = join(CACHE, `${hash.slice(0, 16)}.clean${DENOISE.reduction}.wav`);
+  if (existsSync(out)) return out;
+  const pause = quietestPause(path, words);
+  const filters = [`highpass=f=${DENOISE.highpass}`];
+  if (pause) {
+    filters.push(
+      `asendcmd=c='${pause[0].toFixed(3)} afftdn sn start;${pause[1].toFixed(3)} afftdn sn stop'`,
+      `afftdn=nr=${DENOISE.reduction}`,
+    );
+  }
+  const partial = out.replace(/\.wav$/, ".partial.wav");
+  execFileSync("ffmpeg", ["-y", "-loglevel", "error", "-i", path, "-vn", "-ac", "1", "-ar", "44100", "-af", filters.join(","), partial]);
+  renameSync(partial, out);
+  return out;
+}
+
 /** Seconds `from`–`to` of a take, faded in and out, as a clip. */
 function cutTake(path, [from, to], outPath) {
   const length = to - from;
@@ -436,7 +488,7 @@ async function planRecordings(videoDir, scenes, spoken, wanted) {
       .filter(([i, j]) => i < j)
       .flatMap(([i, j]) => aligned.words.slice(i, j).map((w) => w.w));
     if (missing.length) problems.push(`  ${part.scene.id}: skips "${missing.join(" ")}"`);
-    sources.set(part.scene.id, { path: talk, hash, span, words: part.words, extra: aligned.extra });
+    sources.set(part.scene.id, { path: talk, hash, span, words: part.words, takeWords: aligned.words, extra: aligned.extra });
   }
   if (problems.length) {
     throw new Error(
@@ -459,7 +511,7 @@ function takeOf({ path, span }) {
  * captions show the script.
  */
 async function synthesizeRecorded(text, voice, mp3Path, label, source) {
-  let { words, span, extra } = source;
+  let { words, span, extra, takeWords } = source;
   if (!span) {
     const aligned = await alignTake(source.path, text, mp3Path.replace(/\.mp3$/, ".take"));
     if (aligned.missing.length) {
@@ -469,10 +521,12 @@ async function synthesizeRecorded(text, voice, mp3Path, label, source) {
       );
     }
     ({ words, extra } = aligned);
+    takeWords = words;
     span = keep(words, [0, probeDuration(source.path)]);
   }
   warnExtra(label, extra, span);
-  cutTake(source.path, span, mp3Path);
+  const audio = voice.denoise === false ? source.path : cleanTake(source.path, source.hash, takeWords);
+  cutTake(audio, span, mp3Path);
   const shift = (t) => Number((t - span[0]).toFixed(3));
   return words.map((w) => ({ ...w, s: shift(w.s), e: shift(w.e) }));
 }

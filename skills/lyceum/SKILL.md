@@ -150,7 +150,10 @@ over it. Never switch providers silently.
   a phone's `.mov`…), reading the narration as written. Give them the narration to read from, scene by
   scene. Pauses and asides between scenes ("next slide") are fine: they're cut out.
 - **`narrate`** aligns the talk against the whole script with local Whisper, splits it into scenes in
-  the pauses between them, trims each, and brings every scene to the same loudness.
+  the pauses between them, trims each, and brings every scene to the same loudness. It also takes the
+  room's noise out of every take (a high-pass, then a denoiser that learns the noise from the take's
+  quietest pause), since leveling a home recording raises its noise too. `voice: { provider: recorded,
+  denoise: false }` keeps takes as recorded.
 - **To fix a scene,** they record just that scene to `recordings/<scene-id>.m4a`, which wins over its
   part of the talk. The same goes for a talk that stops early: record the rest scene by scene. (Recording
   every scene on its own, with no talk, works too.) Takes are cached by their contents, so re-recording

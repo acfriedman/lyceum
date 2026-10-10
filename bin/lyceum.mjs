@@ -9,7 +9,8 @@ const TOOLS = join(dirname(fileURLToPath(import.meta.url)), "..", "tools");
 const COMMANDS = {
   init: ["init.mjs", "make the current directory (or <dir>) a Lyceum project"],
   new: ["new-video.mjs", 'start a video: <slug> "<Title>"'],
-  narrate: ["narrate.mjs", "voice a video's script: <video> [--provider openai|elevenlabs|say] [--only <scene>]"],
+  narrate: ["narrate.mjs", "voice a video's script, or align your own recordings: <video> [--provider openai|elevenlabs|say|recorded] [--only <scene>]"],
+  transcribe: ["transcribe.mjs", "write down what your recorded takes say, to compare with the script: <video> [--scene <scene-id>]"],
   scenes: ["scenes.mjs", "scaffold scene files and per-scene briefs from the narration: <video>"],
   stills: ["stills.mjs", "a contact sheet of one scene: <video> <scene> [--at <s1,s2,…> | --every <s>]"],
   render: ["render.mjs", "render a video (or one scene): <video> [--scene <id> [--draft]]"],

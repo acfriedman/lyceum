@@ -2,7 +2,7 @@
 // Narrates a video's script: one audio clip per scene, with word timings, plus the timeline the
 // composition and the captions are laid out from.
 //
-//   lyceum narrate <video> [--provider openai|elevenlabs|say] [--only <scene-id>]
+//   lyceum narrate <video> [--provider openai|elevenlabs|say|recorded] [--only <scene-id>]
 //
 // Each clip is cached under .cache/narration by a hash of everything that shapes the audio (provider,
 // voice, model, settings, spoken text), so re-running after a script edit only pays for the scenes
@@ -15,19 +15,24 @@
 // reports word timings itself; for the others, align.py (beside this file) derives them with local Whisper
 // (a Python venv shared by every project, under the Lyceum home directory, created on first use).
 //
+// `recorded` is the narrator's own voice, from the video's recordings/ directory: the whole talk in one
+// take, `recordings/_talk.m4a` (or .wav, .mp3, …), split into scenes, and any scene recorded again on
+// its own, `recordings/<scene-id>.m4a`, which wins over its part of the talk. Takes are aligned against
+// the script and cut to its words.
+//
 // The project's lyceum.config.json can set a default `voice`, plus `pronounce` and `allowSpoken`
 // entries that apply to every script; a script's own frontmatter wins.
 
 import { createHash } from "node:crypto";
 import { execFile, execFileSync, spawnSync } from "node:child_process";
-import { withSlot } from "./slots.mjs";
 import { promisify } from "node:util";
-import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { basename, dirname, extname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import { toSrt } from "./captions.mjs";
+import { RECORDING_TYPES, TALK, fileHash, probeDuration, recordings, recordingsDir, whisperPython, whisperSlot } from "./takes.mjs";
 import { parseScript, spokenText } from "./script.mjs";
-import { CACHE as CACHE_ROOT, CONFIG, HOME, ROOT, preparePublic, videoDir as resolveVideoDir, videoSlug } from "./paths.mjs";
+import { CACHE as CACHE_ROOT, CONFIG, ROOT, preparePublic, videoDir as resolveVideoDir, videoSlug } from "./paths.mjs";
 
 const CACHE = join(CACHE_ROOT, "narration");
 
@@ -63,6 +68,9 @@ const VOICES = {
     seed: 7,
   },
   say: { provider: "say", id: "Samantha", rate: 180 },
+  // Bump `processing` when the way takes are cut or cleaned changes: each clip is cached by its take's
+  // contents. `denoise: false` in a script's `voice:` keeps a take's room noise as recorded.
+  recorded: { provider: "recorded", id: "recording", processing: "trim+denoise@3", denoise: true },
 };
 
 /** The voice a run uses: `--provider` wins, then the script's `voice:`, then OpenAI. */
@@ -82,7 +90,7 @@ function parseArgs(argv) {
     else args.dir = argv[i];
   }
   if (!args.dir) {
-    console.error("usage: lyceum narrate <video> [--provider openai|elevenlabs|say] [--only <scene-id>]");
+    console.error("usage: lyceum narrate <video> [--provider openai|elevenlabs|say|recorded] [--only <scene-id>]");
     process.exit(2);
   }
   return args;
@@ -121,39 +129,20 @@ function wordsFromAlignment({ characters, character_start_times_seconds: starts,
   return words;
 }
 
-/** The Python that runs align.py: a venv with mlx-whisper, created with uv on first use. */
-function alignerPython() {
-  const venv = join(HOME, "py");
-  const python = join(venv, "bin", "python");
-  if (!existsSync(python)) {
-    console.log(`  creating ${venv} (mlx-whisper) for word alignment…`);
-    execFileSync("uv", ["venv", "-q", "--python", "3.12", venv], { stdio: "inherit" });
-    execFileSync("uv", ["pip", "install", "-q", "mlx-whisper"], { stdio: "inherit", env: { ...process.env, VIRTUAL_ENV: venv } });
-  }
-  return python;
-}
-
-// Whisper loads its model per process, so alignments take machine-wide slots (see slots.mjs): the cap
-// holds however many narrations run at once.
-const whisperSlot = (task) => withSlot("whisper", task);
-
 /** Word timings for a clip, from local Whisper matched back to the script's words, plus the script
- *  words Whisper never heard (`missing`). Paths are unique per clip, so calls may run concurrently. */
-async function align(text, mp3Path, sentinel) {
-  const textPath = mp3Path.replace(/\.mp3$/, ".txt");
+ *  words Whisper never heard (`missing`) and what it heard that the script doesn't say (`extra`).
+ *  Paths are unique per clip, so calls may run concurrently. */
+async function align(text, audioPath, sentinel) {
+  const textPath = audioPath.replace(/\.\w+$/, ".txt");
   writeFileSync(textPath, text);
   const { stdout } = await whisperSlot(() =>
-    promisify(execFile)(alignerPython(), [join(dirname(fileURLToPath(import.meta.url)), "align.py"), mp3Path, textPath, ...(sentinel ? [sentinel] : [])], {
+    promisify(execFile)(whisperPython(), [join(dirname(fileURLToPath(import.meta.url)), "align.py"), audioPath, textPath, ...(sentinel ? [sentinel] : [])], {
       maxBuffer: 16 * 1024 * 1024,
     }),
   );
   return JSON.parse(String(stdout));
 }
 
-function probeDuration(file) {
-  const out = execFileSync("ffprobe", ["-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", file]);
-  return Number(String(out).trim());
-}
 
 async function synthesizeElevenLabs(text, voice, mp3Path) {
   const response = await fetch(
@@ -303,7 +292,203 @@ async function synthesizeSay(text, voice, mp3Path) {
   return (await align(text, mp3Path)).words;
 }
 
-const SYNTHESIZE = { openai: synthesizeOpenAI, elevenlabs: synthesizeElevenLabs, say: synthesizeSay };
+// A take is cut this far either side of its first and last words, so the silence before and after
+// speaking doesn't count, and the timeline's lead-in and tail space every scene alike.
+const RECORDING_PAD = { before: 0.25, after: 0.4 };
+// Bump when the way a talk is aligned or split changes: its alignment is cached by take and script.
+const TALK_ALIGNER = "talk@1";
+
+/** Word timings for a take, from Whisper on a mono copy of its audio (in the cache, never beside it). */
+async function alignTake(path, text, scratch) {
+  const wav = `${scratch}.wav`;
+  execFileSync("ffmpeg", ["-y", "-loglevel", "error", "-i", path, "-vn", "-ac", "1", "-ar", "44100", wav]);
+  try {
+    return await align(text, wav);
+  } finally {
+    rmSync(wav, { force: true });
+  }
+}
+
+// A room's noise under a take (rumble, hum, hiss) is taken out of the whole take once, before it's cut:
+// a high-pass below the voice, then a spectral denoiser that learns the noise from the take's quietest
+// pause. Leveling a quiet take raises its noise with it, so this matters most for a home recording.
+const DENOISE = { highpass: 70, reduction: 20, pause: 0.4, sample: 2 };
+
+/** The level of seconds `a`–`b` of a take, in dB, after the high-pass (null for digital silence). */
+function pauseLevel(path, [a, b]) {
+  const { stderr } = spawnSync(
+    "ffmpeg",
+    ["-hide_banner", "-nostats", "-ss", a.toFixed(3), "-t", (b - a).toFixed(3), "-i", path, "-vn", "-af",
+      `highpass=f=${DENOISE.highpass},astats=measure_perchannel=none:measure_overall=RMS_level`, "-f", "null", "-"],
+    { encoding: "utf8" },
+  );
+  const level = Number(stderr.match(/RMS level dB: (-?[\d.]+)/)?.[1]);
+  return Number.isFinite(level) ? level : null;
+}
+
+/** The take's quietest pause, as seconds [from, to], to learn its noise from: the stretches before,
+ *  between and after its words, long enough to measure (a breath is louder than the room, so the
+ *  quietest one is the room alone). Null when there's none. */
+function quietestPause(path, words) {
+  const duration = probeDuration(path);
+  return [[0, words[0].s], ...words.slice(1).map((w, i) => [words[i].e, w.s]), [words.at(-1).e, duration]]
+    .map(([a, b]) => [a + 0.1, Math.min(b - 0.1, a + 0.1 + DENOISE.sample)])
+    .filter(([a, b]) => b - a >= DENOISE.pause)
+    .sort((x, y) => y[1] - y[0] - (x[1] - x[0]))
+    .slice(0, 8)
+    .map((pause) => ({ pause, level: pauseLevel(path, pause) }))
+    .filter((p) => p.level !== null)
+    .sort((x, y) => x.level - y.level)[0]?.pause ?? null;
+}
+
+/** A take with its room noise taken out, cached by its contents (`hash`); `words` are its words, timed in
+ *  the take. Without a pause to learn the noise from, only the high-pass is applied. */
+function cleanTake(path, hash, words) {
+  const out = join(CACHE, `${hash.slice(0, 16)}.clean${DENOISE.reduction}.wav`);
+  if (existsSync(out)) return out;
+  const pause = quietestPause(path, words);
+  const filters = [`highpass=f=${DENOISE.highpass}`];
+  if (pause) {
+    filters.push(
+      `asendcmd=c='${pause[0].toFixed(3)} afftdn sn start;${pause[1].toFixed(3)} afftdn sn stop'`,
+      `afftdn=nr=${DENOISE.reduction}`,
+    );
+  }
+  const partial = out.replace(/\.wav$/, ".partial.wav");
+  execFileSync("ffmpeg", ["-y", "-loglevel", "error", "-i", path, "-vn", "-ac", "1", "-ar", "44100", "-af", filters.join(","), partial]);
+  renameSync(partial, out);
+  return out;
+}
+
+/** Seconds `from`–`to` of a take, faded in and out, as a clip. */
+function cutTake(path, [from, to], outPath) {
+  const length = to - from;
+  execFileSync("ffmpeg", [
+    "-y", "-loglevel", "error", "-ss", from.toFixed(3), "-t", length.toFixed(3), "-i", path, "-vn", "-ac", "1", "-ar", "44100",
+    "-af", `afade=t=in:d=0.05,afade=t=out:st=${Math.max(0, length - 0.1).toFixed(3)}:d=0.1`, "-b:a", "160k", outPath,
+  ]);
+}
+
+/** The span of a take to keep: its words, RECORDING_PAD either side, inside `within`. */
+function keep(words, [lo, hi]) {
+  return [Math.max(lo, words[0].s - RECORDING_PAD.before), Math.min(hi, words.at(-1).e + RECORDING_PAD.after)];
+}
+
+/** Warns about unscripted speech inside the span kept (what falls outside it is cut anyway). */
+function warnExtra(label, extra, [from, to]) {
+  for (const phrase of extra) {
+    if (phrase.e > from && phrase.s < to) console.log(`  ${label}: heard "${phrase.text}", which isn't in the script (the captions won't show it)`);
+  }
+}
+
+/**
+ * Where each scene's narration comes from (scenes in `wanted`; others, if they have a take, too):
+ *   { path, hash }                   its own take, aligned when its clip is made
+ *   { path, hash, span, words, … }   its part of the talk: the talk is aligned against the whole script
+ *                                    once, and each scene cut halfway through the pauses around it
+ * A scene with neither, or whose part of the talk skips words, is an error, all of them reported at once.
+ */
+async function planRecordings(videoDir, scenes, spoken, wanted) {
+  const takes = recordings(videoDir);
+  const label = relative(ROOT, recordingsDir(videoDir));
+  for (const id of takes.keys()) {
+    // A take named for no scene is usually a scene renamed since it was recorded.
+    if (id !== TALK && !scenes.some((s) => s.id === id)) console.log(`  ${label}/: no scene "${id}" in the script; its take is unused`);
+  }
+  const sources = new Map();
+  for (const scene of scenes) {
+    const path = takes.get(scene.id);
+    if (path) sources.set(scene.id, { path, hash: fileHash(path) });
+  }
+  const fromTalk = wanted.filter((s) => !sources.has(s.id));
+  if (fromTalk.length === 0) return sources;
+  const talk = takes.get(TALK);
+  if (!talk) {
+    // The easy mistake: a take saved beside script.md instead of in recordings/.
+    const astray = readdirSync(videoDir).filter((f) => RECORDING_TYPES.has(extname(f).toLowerCase()));
+    throw new Error(
+      `no recording of ${fromTalk.map((s) => s.id).join(", ")}: record the whole talk to ${label}/${TALK}.m4a, or each scene ` +
+        `to ${label}/<scene-id>.m4a (or .wav, .mp3, …), reading the narration as written` +
+        (astray.length ? `\n(${astray.join(", ")} is beside script.md: takes go in ${label}/)` : ""),
+    );
+  }
+
+  const hash = fileHash(talk);
+  const text = scenes.map(spoken).join("\n\n");
+  const cached = join(CACHE, `${createHash("sha256").update(JSON.stringify({ hash, text, aligner: TALK_ALIGNER })).digest("hex").slice(0, 16)}.talk.json`);
+  if (!existsSync(cached)) {
+    console.log(`  aligning ${relative(ROOT, talk)} against the script…`);
+    writeFileSync(cached, JSON.stringify(await alignTake(talk, text, cached.replace(/\.json$/, ""))));
+  }
+  const aligned = JSON.parse(readFileSync(cached, "utf8"));
+
+  // Each scene's words, by counting the script's words (align.py splits on whitespace too).
+  let at = 0;
+  const parts = scenes.map((scene) => {
+    const count = spoken(scene).split(/\s+/).filter(Boolean).length;
+    const part = { scene, from: at, to: at + count, words: aligned.words.slice(at, at + count) };
+    at += count;
+    return part;
+  });
+  const duration = probeDuration(talk);
+  const problems = [];
+  for (const [k, part] of parts.entries()) {
+    if (!fromTalk.includes(part.scene)) continue;
+    const before = parts[k - 1]?.words.at(-1)?.e;
+    const after = parts[k + 1]?.words[0]?.s;
+    const first = part.words[0].s;
+    const last = part.words.at(-1).e;
+    const span = keep(part.words, [before === undefined ? 0 : (before + first) / 2, after === undefined ? duration : (last + after) / 2]);
+    const missing = aligned.skipped
+      .map(([i, j]) => [Math.max(i, part.from), Math.min(j, part.to)])
+      .filter(([i, j]) => i < j)
+      .flatMap(([i, j]) => aligned.words.slice(i, j).map((w) => w.w));
+    if (missing.length) problems.push(`  ${part.scene.id}: skips "${missing.join(" ")}"`);
+    sources.set(part.scene.id, { path: talk, hash, span, words: part.words, takeWords: aligned.words, extra: aligned.extra });
+  }
+  if (problems.length) {
+    throw new Error(
+      `${relative(ROOT, talk)} doesn't say all of the script:\n${problems.join("\n")}\n` +
+        `Record each of these scenes on its own, to ${label}/<scene-id>.m4a, or change its narration in script.md to what you said ` +
+        `("lyceum transcribe <video>" writes it down).`,
+    );
+  }
+  return sources;
+}
+
+/** What narration.json says of a recorded scene's take: its file, and the span cut from the talk. */
+function takeOf({ path, span }) {
+  return { file: basename(path), ...(span && { from: Number(span[0].toFixed(3)), to: Number(span[1].toFixed(3)) }) };
+}
+
+/**
+ * A scene the narrator recorded: its part of the talk, already aligned, or its own take, aligned and
+ * checked for skipped lines here. Either is cut to its words with RECORDING_PAD either side. Words
+ * heard that the script doesn't have only warn: the picture is timed to the script's words, and the
+ * captions show the script.
+ */
+async function synthesizeRecorded(text, voice, mp3Path, label, source) {
+  let { words, span, extra, takeWords } = source;
+  if (!span) {
+    const aligned = await alignTake(source.path, text, mp3Path.replace(/\.mp3$/, ".take"));
+    if (aligned.missing.length) {
+      throw new Error(
+        `${label}: the recording skips "${aligned.missing.join(" ")}". Record the scene again, or change its narration in ` +
+          `script.md to what you said ("lyceum transcribe <video> --scene ${label}" writes it down).`,
+      );
+    }
+    ({ words, extra } = aligned);
+    takeWords = words;
+    span = keep(words, [0, probeDuration(source.path)]);
+  }
+  warnExtra(label, extra, span);
+  const audio = voice.denoise === false ? source.path : cleanTake(source.path, source.hash, takeWords);
+  cutTake(audio, span, mp3Path);
+  const shift = (t) => Number((t - span[0]).toFixed(3));
+  return words.map((w) => ({ ...w, s: shift(w.s), e: shift(w.e) }));
+}
+
+const SYNTHESIZE = { openai: synthesizeOpenAI, elevenlabs: synthesizeElevenLabs, say: synthesizeSay, recorded: synthesizeRecorded };
 
 // Narration says things in full: no acronyms, no shortenings. Listeners can't see the spelling, and
 // "op" or "GCD" makes them decode instead of follow. Checked before anything is billed.
@@ -341,6 +526,19 @@ async function main() {
   const timing = { ...DEFAULTS, ...(meta.timing ?? {}) };
   const voice = resolveVoice(args.provider, meta.voice);
   const provider = voice.provider;
+  // A person reads the script as written: `pronounce` respells words for synthetic voices only.
+  const recorded = provider === "recorded";
+  const spoken = (scene) => spokenText(scene.narration, recorded ? {} : meta.pronounce);
+  const wanted = scenes.filter((s) => !args.only || args.only === s.id);
+  const sources = recorded ? await planRecordings(videoDir, scenes, spoken, wanted) : new Map();
+  /** What shapes a scene's clip, and so its cache key: for a recording, the take (and the part of it) too. */
+  const shapeOf = (scene) => {
+    const source = sources.get(scene.id);
+    const shape = { provider, voice, text: spoken(scene) };
+    if (!source) return shape;
+    return source.span ? { ...shape, take: source.hash, span: source.span.map((t) => Number(t.toFixed(3))) } : { ...shape, take: source.hash };
+  };
+  const hashOf = (shape) => createHash("sha256").update(JSON.stringify(shape)).digest("hex").slice(0, 16);
 
   mkdirSync(CACHE, { recursive: true });
   const publicRoot = preparePublic();
@@ -350,14 +548,14 @@ async function main() {
     ? JSON.parse(readFileSync(join(videoDir, "narration.json"), "utf8"))
     : null;
 
-  // Lint every scene that would be newly voiced (cached scenes were already accepted).
+  // Lint every scene that would be newly voiced (cached scenes were already accepted). A recording is
+  // the narrator's own wording, and the script has to match what they said, so it isn't held to this.
   const allowed = new Set(meta.allow_spoken ?? []);
   const problems = [];
   for (const scene of scenes) {
-    if (args.only && args.only !== scene.id) continue;
-    const text = spokenText(scene.narration, meta.pronounce);
-    const hash = createHash("sha256").update(JSON.stringify({ provider, voice, text })).digest("hex").slice(0, 16);
-    if (existsSync(join(CACHE, `${hash}.mp3`))) continue;
+    if (recorded || (args.only && args.only !== scene.id)) continue;
+    const text = spoken(scene);
+    if (existsSync(join(CACHE, `${hashOf(shapeOf(scene))}.mp3`))) continue;
     const found = shortenings(text, allowed);
     if (found.length) problems.push(`  ${scene.id}: ${found.join(", ")}`);
   }
@@ -369,12 +567,11 @@ async function main() {
   }
 
   // Every scene that needs voicing is voiced at once; each scene's paragraphs run concurrently too.
-  if (provider !== "elevenlabs") alignerPython(); // create the venv once, before any parallel use
+  if (provider !== "elevenlabs") whisperPython(); // create the venv once, before any parallel use
   const out = await Promise.all(
     scenes.map(async (scene) => {
-      const text = spokenText(scene.narration, meta.pronounce);
-      const shape = { provider, voice, text };
-      const hash = createHash("sha256").update(JSON.stringify(shape)).digest("hex").slice(0, 16);
+      const text = spoken(scene);
+      const hash = hashOf(shapeOf(scene));
       const cachedMp3 = join(CACHE, `${hash}.mp3`);
       const cachedWords = join(CACHE, `${hash}.json`);
 
@@ -386,7 +583,7 @@ async function main() {
           return { ...kept, title: scene.title };
         }
         console.log(`  narrating ${scene.id} (${text.length} chars, ${provider})…`);
-        const words = await SYNTHESIZE[provider](text, voice, cachedMp3, scene.id);
+        const words = await SYNTHESIZE[provider](text, voice, cachedMp3, scene.id, sources.get(scene.id));
         writeFileSync(cachedWords, JSON.stringify(words));
         console.log(`  done      ${scene.id}`);
       } else {
@@ -405,6 +602,8 @@ async function main() {
         audio,
         hash,
         duration: probeDuration(leveled),
+        // A recorded scene's take, and for a part of the talk, the seconds of it the clip was cut from.
+        ...(sources.has(scene.id) && { take: takeOf(sources.get(scene.id)) }),
         words: JSON.parse(readFileSync(cachedWords, "utf8")),
       };
     }),

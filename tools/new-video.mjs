@@ -32,6 +32,9 @@ pronounce: {}
 # captions: burned
 # The look: the dark canvas, or \`theme: paper\`, a light, formal look for presentations.
 # theme: paper
+# Your own voice instead of text-to-speech: the whole talk in recordings/_talk.m4a, and any scene
+# recorded again on its own in recordings/<scene-id>.m4a.
+# voice: { provider: recorded }
 # The files this video explains, one per line: \`- path (what the video takes from it)\`.
 # \`lyceum stale\` watches them; \`lyceum stale --mark ${slug}\` records the commit they were checked at.
 sources: []
@@ -41,7 +44,8 @@ sources: []
 Format: one \`## NN · id — Title\` per scene. \`> Visual:\` lines describe the animation; every other
 paragraph is narration, spoken in order. The narration is the only text sent to TTS, so it is
 written for the ear: no identifiers that read badly aloud, short sentences. The intent above the
-first scene is never narrated.
+first scene is never narrated. Reading it yourself? Write the narration as a bulleted list, a line per
+breath: the bullets are only its shape, and each one is a natural place to pause.
 -->
 
 # Intent

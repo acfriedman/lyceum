@@ -13,10 +13,10 @@ script and scenes are in [`explainers/`](explainers/videos/what-is-lyceum/script
 ## How it works
 
 A video starts as one `script.md`, a screenplay in Markdown: for each scene, what's on screen and what's
-said. Lyceum voices each scene with text-to-speech and records when every word is spoken. Each scene is a
-React component that times its animation to those words with `cue("spoken words")`, and Lyceum draws it
-frame by frame in headless Chrome. An incremental renderer joins the scenes into an MP4 with subtitles. A
-bundled agent skill drives the whole loop:
+said. Lyceum voices each scene with text-to-speech, or takes your own recording, and records when every
+word is spoken. Each scene is a React component that times its animation to those words with
+`cue("spoken words")`, and Lyceum draws it frame by frame in headless Chrome. An incremental renderer
+joins the scenes into an MP4 with subtitles. A bundled agent skill drives the whole loop:
 - research the topic;
 - write the script, and stop for your review;
 - narrate;
@@ -36,9 +36,10 @@ code and systems. Nothing in it is specific to code, though.
 - **A voice:**
   - an OpenAI API key (default voice, about $0.15 per 10-minute video); or
   - an ElevenLabs key; or
-  - macOS `say`, free, for drafts.
+  - macOS `say`, free, for drafts; or
+  - your own voice: record the talk yourself, and Lyceum times the video to it.
 - **Apple Silicon and [uv](https://docs.astral.sh/uv/)** for word timings with the OpenAI or `say`
-  voices: Lyceum aligns them with local Whisper (mlx-whisper). ElevenLabs reports timings itself, so it
+  voices, or your own recordings: Lyceum aligns them with local Whisper (mlx-whisper). ElevenLabs reports timings itself, so it
   works anywhere.
 - **A coding agent** that reads [Agent Skills](https://agentskills.io): Claude Code, Codex CLI, Gemini
   CLI, Cursor, GitHub Copilot and others.
@@ -70,6 +71,8 @@ explainers/
   videos/<slug>/
     script.md              the source of truth: the video's intent, then scenes, visuals, narration
     scenes/                one component per scene, plus shared.tsx (the video's visual vocabulary)
+    recordings/            your own narration, if you record it: the whole talk (_talk.m4a), and any
+                           scene recorded again on its own (<scene-id>.m4a)
     narration.json         generated: per-scene audio, word timings, timeline
     captions.srt           generated
     dist/                  renders: <slug>.mp4, <slug>.srt, scenes/<clip>.mp4 (gitignored)
@@ -83,7 +86,7 @@ explainers/
 | `videos` | `"videos"` | where the videos live |
 | `cache` | `".cache"` | where regenerable files go |
 | `project` | `"project.md"` | the project guide the agent reads first (older projects: `brief`) |
-| `voice` | OpenAI `cedar` | default voice, e.g. `{ "provider": "elevenlabs" }` or `{ "id": "marin" }` |
+| `voice` | OpenAI `cedar` | default voice, e.g. `{ "provider": "elevenlabs" }`, `{ "id": "marin" }`, or `{ "provider": "recorded" }` for your own |
 | `pronounce` | `{}` | written → spoken, for every script (a script's own map wins) |
 | `allowSpoken` | `[]` | acronyms the narration check should allow |
 | `captions` | `"track"` | `"track"`: subtitles viewers turn on; `"burned"`: drawn into the picture (a script's `captions:` wins) |

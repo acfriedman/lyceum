@@ -100,6 +100,9 @@ What makes a script work:
 - **Make each visual brief specific:** what is on screen, where it is, and which spoken words trigger each
   change. Vague briefs produce vague scenes.
 - **Give every claim a source.** If code on screen is simplified, the brief says "simplified".
+- **Pick the look.** Videos are drawn on a dark canvas by default, which suits code. `theme: paper` in
+  the frontmatter (or `"theme": "paper"` in `lyceum.config.json`, for every video) draws a light, formal
+  look instead, for presentations. Follow the project guide or the user; don't switch on your own.
 
 **Gate:** show the user the intent and the arc as numbered one-line scenes, with the script's path, and
 wait. They may waive review ("I trust your script"). Respect that, but still show the intent and the arc.
@@ -159,7 +162,9 @@ It's idempotent: re-run it after any narration change. It:
 ### 5. Set the visual vocabulary, then build scene 1 yourself
 
 Before any scene, write `scenes/shared.tsx`. It holds the vocabulary every scene reuses:
-- role colours: who is who, used the same way in every scene;
+- role colours: who is who, used the same way in every scene, taken from the kit's `C` (never a
+  hard-coded colour, so the scene draws right in either theme: a panel is `C.surface`, a recess
+  `C.sunken`);
 - standard positions for recurring layouts;
 - recurring props.
 
@@ -199,7 +204,7 @@ Look at every scene's contact sheet yourself. Check for:
 - stretches over about 6 s where nothing moves;
 - elements that arrive before or after their words.
 
-The last 0.45 s of every scene fades through black by design, so a blank final frame is expected.
+The last 0.45 s of every scene fades out to the canvas by design, so a blank final frame is expected.
 
 Fix small things directly. Subagents report kit gaps they worked around. If one is a real kit bug, fix it
 in Lyceum itself, not in the project.

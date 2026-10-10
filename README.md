@@ -87,6 +87,7 @@ explainers/
 | `pronounce` | `{}` | written → spoken, for every script (a script's own map wins) |
 | `allowSpoken` | `[]` | acronyms the narration check should allow |
 | `captions` | `"track"` | `"track"`: subtitles viewers turn on; `"burned"`: drawn into the picture (a script's `captions:` wins) |
+| `theme` | `"dark"` | `"dark"`: the dark canvas, for code explainers; `"paper"`: a light, formal look for presentations (a script's `theme:` wins) |
 
 ## Licensing
 

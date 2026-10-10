@@ -34,7 +34,7 @@ const DocPage: React.FC<{ x: number; y: number; at: number; scale?: number }> = 
         height: h,
         padding: "40px 44px",
         borderRadius: 14,
-        background: "#18181C",
+        background: C.surface,
         border: `2px solid ${C.faint}`,
         opacity: o,
         transform: `scale(${scale * mix(0.94, 1, o)})`,
@@ -131,7 +131,7 @@ export const Whiteboard: React.FC = () => {
             height: bh,
             borderRadius: 18,
             border: `3px solid ${C.faint}`,
-            background: "#FFFFFF06",
+            background: `${C.text}06`,
           }}
         />
         <div style={{ position: "absolute", left: 960 - bw / 2, top: DIAGRAM.y + bh / 2 + 16, fontFamily: FONT.serif, fontStyle: "italic", fontSize: 28, color: C.dim }}>

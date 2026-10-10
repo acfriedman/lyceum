@@ -1,8 +1,10 @@
 // The page Lyceum's renderer opens in headless Chrome (see tools/chrome.mjs): one scene of one video,
-// `?video=<slug>&scene=<id>`, or its title card, drawn at whichever frame the renderer asks for. A frame
-// is a pure function of the clock, so `seek` renders synchronously and the next screenshot shows exactly
-// that frame.
+// `?video=<slug>&scene=<id>&theme=<name>`, or its title card, drawn at whichever frame the renderer asks
+// for. A frame is a pure function of the clock, so `seek` renders synchronously and the next screenshot
+// shows exactly that frame.
 
+// Before anything else: scenes read the theme as their modules load.
+import "./boot";
 import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
 import { ClockProvider, type Clock } from "./clock";

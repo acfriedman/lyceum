@@ -199,7 +199,7 @@ export const Panel: React.FC<{
         opacity: o,
         borderRadius: 16,
         border: `2px solid ${border}`,
-        background: "#16161A",
+        background: C.surface,
         overflow: "hidden",
         transform: `translateY(${(1 - Math.min(1, o)) * 16}px)`,
       }}

@@ -49,6 +49,8 @@ explainers/         a Lyceum project of videos about Lyceum, made with this chec
   Chrome drawing at the render's scale, and `tools/chrome.mjs` sets both. A change to the page, its CSS or
   Chrome's switches can move every scene by a pixel: compare a scene's contact sheet before and after
   (`cmp` on the PNGs), and expect them to match unless the change meant to alter the look.
+- **Themes share their keys.** Every palette in `kit/theme.ts` has the same colours: a new one goes in
+  every theme. Don't change a theme's existing values casually: every video drawn in it changes.
 - **Respect the memory caps.** Anything that loads a Whisper model, drives a browser or runs `tsc` takes
   a slot from `tools/slots.mjs`. Never add a heavy step outside one.
 - **Check your changes:**

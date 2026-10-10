@@ -3,20 +3,20 @@ import { Arrow, C, FONT, Svg, Text, prog, useScene, visibility } from "#kit";
 import { ROLE, TALK, Terminal, Waveform } from "./shared";
 
 // Fix one scene: Lyceum's real error names the scene a stumble is in, a take of just that scene joins
-// the recordings, and in the strip of scene clips it replaces the fourth while the rest stay as they
+// the recordings, and in the strip of scene clips it replaces this scene's own while the rest stay as they
 // were. Then the real warning for words the script doesn't have: the audio keeps them, the captions
 // don't.
 
 const TERM = { x: 160, y: 130, w: 1600 };
 const TREE = { x: 160, y: 470, size: 28, row: 46, indent: 40 };
 
-// The five scene clips of the talk, side by side, each as wide as it is long.
+// The talk's scene clips, side by side, each as wide as it is long.
 const STRIP_Y = 800;
 const STRIP_H = 150;
 const GAP = 24;
 const LEFT = 160;
 const WIDTH = 1600;
-const FIX = 3; // fix-a-scene, the fourth clip
+const FIX = TALK.scenes.findIndex((s) => s.id === "fix-a-scene"); // this scene's own clip
 const total = TALK.scenes.reduce((sum, s) => sum + (s.to - s.from), 0);
 const perSecond = (WIDTH - GAP * (TALK.scenes.length - 1)) / total;
 const CLIPS = TALK.scenes.reduce<{ id: string; from: number; to: number; x: number; w: number }[]>((clips, s) => {
@@ -54,7 +54,10 @@ export const FixAScene: React.FC = () => {
   const slide = prog(frame, replaces + s(0.35), 0.6, fps);
   const flag = prog(frame, whichScene, 0.4, fps);
   const gold = prog(frame, something, 0.6, fps);
-  const stripIn = prog(frame, tells, 0.6, fps);
+  // The strip is up from the opening line ("Nobody reads two minutes without a slip"): every scene of
+  // the take, before the stumble is flagged in one of them.
+  const stripAt = cue("Nobody reads");
+  const stripIn = prog(frame, stripAt, 0.8, fps);
   const replaced = frame >= replaces + s(0.35);
   const unchanged = visibility(frame, fps, stays, say);
 
@@ -104,8 +107,8 @@ export const FixAScene: React.FC = () => {
           </g>
         )}
 
-        {/* The clips. The fourth, flagged, lifts out on "replaces"; the new take drops into its place. */}
-        {frame >= tells &&
+        {/* The clips. This scene's, flagged, lifts out on "replaces"; the new take drops into its place. */}
+        {frame >= stripAt &&
           CLIPS.map((clip, i) => {
             const isFix = i === FIX;
             const dy = isFix ? -60 * lift : 0;
@@ -147,13 +150,13 @@ export const FixAScene: React.FC = () => {
         <Arrow from={[extraMid, 372]} to={[extraMid, STRIP_Y - STRIP_H / 2 - 14]} at={captions + s(0.3)} dur={0.6} color={ROLE.muted} width={2.5} dashed />
       </Svg>
 
-      {/* Clip numbers, and "unchanged" over every clip but the fourth. */}
+      {/* Clip numbers, and "unchanged" over every clip but this scene's. */}
       {CLIPS.map((clip, i) => {
         const isFix = i === FIX;
         const color = !isFix ? ROLE.muted : replaced ? ROLE.fix : flag > 0 ? ROLE.problem : ROLE.muted;
         return (
           <React.Fragment key={clip.id}>
-            {frame >= tells && (
+            {frame >= stripAt && (
               <div
                 style={{
                   position: "absolute",

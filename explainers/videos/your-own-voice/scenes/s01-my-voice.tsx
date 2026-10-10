@@ -1,12 +1,15 @@
 import React from "react";
 import { C, FONT, Fade, Line, Svg, Text, prog, track, useScene } from "#kit";
-import { ROLE, STRIP, TALK, Waveform, talkX } from "./shared";
+import { ROLE, STRIP, TALK, Waveform, clipOf, talkX } from "./shared";
 
-// This voice is mine: the take writes on as Andrew speaks, a synthetic voice is crossed out, the strip
-// zooms in so the words of "timed every animation to my words" pin to where they're spoken, and three
-// cards name what a video of your own is for.
+// This voice is mine: the take writes on as Andrew introduces himself, a synthetic voice is named and
+// then crossed out, three cards name what a video of your own is for, and the strip zooms in so the
+// words of "timed every animation to my words" pin to where they're spoken.
 
-const SPAN = TALK.scenes.find((s) => s.id === "my-voice")!;
+// This scene draws its own audio, as it plays: seconds of its clip, from 0.
+const SPAN = { from: 0, to: clipOf("my-voice").duration };
+// The take it plays from: the talk, or this scene's own retake.
+const TAKE = `recordings/${TALK.scenes.find((s) => s.id === "my-voice")?.retake ?? "_talk.m4a"}`;
 const Y = 500;
 const H = 200;
 const PHRASE = ["timed", "every", "animation", "to", "my", "words"];
@@ -22,24 +25,29 @@ export const MyVoice: React.FC = () => {
   const now = SPAN.from + (frame - at(0)) / fps;
   const clip = (f: number) => SPAN.from + (f - at(0)) / fps;
 
-  const synthetic = cue("not a synthetic one");
+  const name = cue("Andrew");
+  const synthetic = cue("A synthetic voice");
+  const hearing = cue("you're hearing me");
+  const read = cue("I read");
   const timed = cue("timed");
-  const matters = cue("That matters");
   const ats = PHRASE.map((w) => cue(w, { after: timed - 1 }));
 
-  // The strip zooms onto the phrase while it's spoken, then back out to the whole scene.
+  // The strip zooms onto the phrase as it's spoken, and holds there to the end of the scene.
   const zoom = { from: clip(ats[0]) - 0.9, to: clip(ats.at(-1)!) + 1.4 };
-  const from = track(frame, fps, [[0, SPAN.from], [timed - Math.round(0.5 * fps), zoom.from], [matters, SPAN.from]], 0.8);
-  const to = track(frame, fps, [[0, SPAN.to], [timed - Math.round(0.5 * fps), zoom.to], [matters, SPAN.to]], 0.8);
+  const from = track(frame, fps, [[0, SPAN.from], [timed - Math.round(0.5 * fps), zoom.from]], 0.8);
+  const to = track(frame, fps, [[0, SPAN.to], [timed - Math.round(0.5 * fps), zoom.to]], 0.8);
   const view = { x: STRIP.x, w: STRIP.w, from, to };
-  const wordsOut = prog(frame, matters, 0.5, fps);
+  const wordsOut = 0;
 
   const pulse = 0.55 + 0.45 * Math.sin((frame / fps) * Math.PI * 1.6);
-  const strike = prog(frame, cue("synthetic") + Math.round(0.3 * fps), 0.5, fps);
-  const loud = cue("out loud");
+  const strike = prog(frame, hearing, 0.5, fps);
+  const loud = read + Math.round(0.8 * fps);
 
   return (
     <>
+      <Text x={STRIP.x} y={250} size={40} color={ROLE.you} anchor="left" at={name} out={synthetic} dur={0.6}>
+        Andrew
+      </Text>
       <Text x={960} y={250} size={44} color={C.dim} at={synthetic} out={loud} dur={0.5} reveal="fade">
         text-to-speech
       </Text>
@@ -51,12 +59,12 @@ export const MyVoice: React.FC = () => {
 
       <div style={{ position: "absolute", left: STRIP.x, top: Y + H / 2 + 34, fontFamily: FONT.mono, fontSize: 26, color: C.dim, display: "flex", alignItems: "center", gap: 14 }}>
         <div style={{ width: 18, height: 18, borderRadius: 9, background: ROLE.problem, opacity: pulse }} />
-        recordings/_talk.m4a
+        {TAKE}
       </div>
 
       <Svg>
         <line x1={STRIP.x} x2={STRIP.x + STRIP.w} y1={Y} y2={Y} stroke={C.faint} strokeWidth={2} />
-        <Waveform y={Y} h={H} from={from} to={to} upTo={now} />
+        <Waveform scene="my-voice" y={Y} h={H} from={from} to={to} upTo={now} />
         {PHRASE.map((word, i) => {
           if (frame < ats[i]) return null;
           const px = talkX(clip(ats[i]), view);

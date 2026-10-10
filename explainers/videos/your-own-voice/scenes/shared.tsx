@@ -18,24 +18,37 @@ export const ROLE = {
 } as const;
 
 /** The talk: its length in seconds, peaks (0–1, `perSecond` of them a second), and where each scene was
- *  cut from it (`from`–`to`, seconds of the talk). */
+ *  cut from it (`from`–`to`, seconds of the talk), with `retake` naming the take a scene recorded again
+ *  on its own is narrated from instead (null for the rest). */
 export const TALK = waveform;
 export type TalkScene = (typeof TALK.scenes)[number];
 
 /** Where the waveform strip sits when it spans the frame: its left edge, width, centre line and height. */
 export const STRIP = { x: 160, w: 1600, y: 560, h: 220 } as const;
 
-/** The loudest peak between two seconds of the talk. */
-function peakBetween(from: number, to: number): number {
+/** A scene's own clip, as it plays (cut from its take, cleaned and levelled): its length and peaks, at
+ *  the talk's `perSecond`. A scene drawing its own audio uses this, so a retake draws right too. */
+export function clipOf(id: string): { duration: number; peaks: number[] } {
+  const clip = (TALK.clips as Record<string, { duration: number; peaks: number[] }>)[id];
+  if (!clip) throw new Error(`waveform.json has no clip "${id}": re-run waveform.mjs`);
+  return clip;
+}
+
+/** The average peak between two seconds of some audio. (The loudest would do for a short span, but over
+ *  a long one nearly every bar holds a loud moment, and the waveform turns into a wall.) */
+function peakBetween(peaks: number[], from: number, to: number): number {
   const a = Math.max(0, Math.floor(from * TALK.perSecond));
-  const b = Math.min(TALK.peaks.length, Math.max(a + 1, Math.ceil(to * TALK.perSecond)));
-  let peak = 0;
-  for (let i = a; i < b; i++) peak = Math.max(peak, TALK.peaks[i]);
-  return peak;
+  const b = Math.min(peaks.length, Math.max(a + 1, Math.ceil(to * TALK.perSecond)));
+  let sum = 0;
+  for (let i = a; i < b; i++) sum += peaks[i];
+  return sum / Math.max(1, b - a);
 }
 
 /** The x of second `t` of the talk, for a waveform showing seconds `from`–`to` in `x`…`x + w`. */
-export function talkX(t: number, { x = STRIP.x, w = STRIP.w, from = 0, to = TALK.duration } = {}): number {
+export function talkX(
+  t: number,
+  { x = STRIP.x, w = STRIP.w, from = 0, to = TALK.duration }: { x?: number; w?: number; from?: number; to?: number } = {},
+): number {
   return x + ((t - from) / (to - from)) * w;
 }
 
@@ -45,7 +58,9 @@ export type WaveformProps = {
   w?: number;
   y?: number;
   h?: number;
-  /** Seconds of the talk shown. */
+  /** Draw this scene's own clip instead of the talk; `from`, `to` and `upTo` are then its seconds. */
+  scene?: string;
+  /** Seconds of the talk (or clip) shown. */
   from?: number;
   to?: number;
   /** Only bars before this second of the talk are drawn: the strip writes on as the talk plays. */
@@ -59,28 +74,31 @@ export type WaveformProps = {
   gain?: (t: number) => number;
 };
 
-/** The real waveform of the talk, as vertical bars about a centre line. Draw it inside `<Svg>`. */
+/** The real waveform of the talk (or of one scene's clip), as vertical bars about a centre line. Draw it
+ *  inside `<Svg>`. */
 export const Waveform: React.FC<WaveformProps> = ({
   x = STRIP.x,
   w = STRIP.w,
   y = STRIP.y,
   h = STRIP.h,
+  scene,
   from = 0,
-  to = TALK.duration,
+  to = scene ? clipOf(scene).duration : TALK.duration,
   upTo = Infinity,
   pitch = 5,
   color = () => ROLE.you,
   opacity = () => 1,
   gain = () => 1,
 }) => {
+  const peaks = scene ? clipOf(scene).peaks : TALK.peaks;
   const count = Math.floor(w / pitch);
   const step = (to - from) / count;
   const bars = [];
   for (let i = 0; i < count; i++) {
     const t = from + i * step;
     if (t >= upTo) break;
-    // Speech peaks sit well below the loudest; a gentle curve lifts them so the shape reads.
-    const height = Math.max(3, Math.pow(peakBetween(t, t + step), 0.6) * gain(t) * h);
+    // Speech sits well below the loudest peak; a gentle curve lifts it so the shape reads.
+    const height = Math.max(3, Math.min(1, 1.3 * Math.pow(peakBetween(peaks, t, t + step), 0.7)) * gain(t) * h);
     bars.push(
       <rect key={i} x={x + i * pitch} y={y - height / 2} width={pitch * 0.6} height={height} rx={1.5} fill={color(t)} opacity={opacity(t)} />,
     );

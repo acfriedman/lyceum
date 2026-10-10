@@ -2,21 +2,41 @@ import React from "react";
 import { C, FONT, Fade, Line, Svg, mix, prog, useScene } from "#kit";
 import { ROLE, STRIP, TALK, Terminal, Waveform, talkX } from "./shared";
 
-// Three steps, then the callback: a line in the frontmatter, the take in the recordings folder, and
-// `lyceum narrate`; then the steps clear and the whole talk returns, cut into this video's five scenes,
-// each of which lights up in turn.
+// Three steps, then the callback: a script written a line per breath, with one line in its frontmatter;
+// the take in the recordings folder; and `lyceum narrate`. Then the steps clear and the whole talk
+// returns, cut into this video's scenes, each of which lights up in turn.
 
 const LEFT = 160;
-const COL = 740;
-const RIGHT = 1920 - LEFT - COL;
+const GAP = 60;
+const COL1 = 900; // step 1's panel: wide enough for the script's longest line
+const RIGHT = LEFT + COL1 + GAP;
+const COL2 = 1920 - LEFT - RIGHT;
 const HEAD = 120; // top of the steps' numbers, top row
-const HEAD3 = 548; // and of step 3
-const PANEL = 250; // top of the top row's panels
+const PANEL = 240; // top of the top row's panels
+const SCRIPT_MONO = 26;
 const MONO = 28;
-const PANEL_H = Math.round(MONO * 1.55 * 5 + 44);
+const panelHeight = (lines: number, size: number) => Math.round(size * 1.55 * lines + 48);
 
-const FRONTMATTER = ["---", 'title: "Narrate it yourself"', "captions: burned", "voice: { provider: recorded }", "---"];
-const VOICE_LINE = 3;
+// A scene of this very script (its `title:` line left out, for room).
+const SCRIPT = [
+  "---",
+  "voice: { provider: recorded }",
+  "---",
+  "",
+  "## 02 · read-aloud — Written to be read aloud",
+  "",
+  "- Reading a script out loud is harder than it sounds.",
+  "- Long sentences run out of breath,",
+  "- and the words start to sound read.",
+];
+const FRONTMATTER = [0, 1, 2];
+const VOICE_LINE = 1;
+const HEADING = 4;
+const BULLETS = [6, 7, 8];
+const SCRIPT_H = panelHeight(SCRIPT.length, SCRIPT_MONO);
+const TREE_H = panelHeight(4, MONO);
+const HEAD3 = PANEL + SCRIPT_H + 28; // step 3, under step 1's panel
+const TERMINAL = HEAD3 + 124;
 
 // The pauses where the take was cut: midway between one scene's end and the next one's start.
 const CUTS = TALK.scenes.slice(1).map((s, i) => (TALK.scenes[i].to + s.from) / 2);
@@ -29,8 +49,11 @@ export const ThreeSteps: React.FC = () => {
   const s = (seconds: number) => Math.round(seconds * fps);
 
   const intro = cue("narrate a video yourself");
-  const step1 = cue("add one line");
-  const saying = cue("saying the voice");
+  const step1 = cue("write the script");
+  const lines = cue("short lines");
+  const perBreath = cue("one per breath");
+  const breath = cue("breath");
+  const addLine = cue("add one line");
   const recorded = cue("recorded");
   const step2 = cue("Record the whole talk");
   const folder = cue("recordings folder");
@@ -39,11 +62,16 @@ export const ThreeSteps: React.FC = () => {
   const started = cue("started");
   const take = cue("one take");
   const timed = cue("timed to it");
-  // The sweep settles before the scene's closing fade.
-  const sweepAt = Math.min(timed + s(0.45), end - s(1.9));
+  // The sweep, a scene every STRIDE seconds, settles before the scene's closing fade: the last pulse
+  // starts 0.11 s into its scene, rises and settles over 0.75 s, and the fade is the last 0.45 s.
+  const STRIDE = 0.16;
+  const sweepAt = Math.min(timed + s(0.45), end - s(0.7 + 0.11 + 0.75 + STRIDE * (TALK.scenes.length - 1)));
 
   const stepsGone = frame >= stepsOut + s(0.5);
   const leave = 1 - prog(frame, stepsOut, 0.45, fps);
+  // A step done steps back as the next one comes in.
+  const recede = (next: number) => mix(1, 0.5, prog(frame, next, 0.5, fps));
+  const bulletAt = [lines, perBreath, breath + s(0.45)];
 
   // The whole take writes on, left to right.
   const upTo = mix(0, TALK.duration + 1, prog(frame, started - s(1), 1.4, fps));
@@ -52,7 +80,7 @@ export const ThreeSteps: React.FC = () => {
   // Once the scenes are named, the take dims, and each scene in turn lights, settling bright.
   const dim = prog(frame, timed, 0.5, fps);
   const pulse = (i: number, lead = 0) => {
-    const at = sweepAt + s(i * 0.2 + lead);
+    const at = sweepAt + s(i * STRIDE + lead);
     return { up: prog(frame, at, 0.25, fps), down: prog(frame, at + s(0.3), 0.45, fps) };
   };
   const sceneOf = (t: number) => TALK.scenes.findIndex((sc) => t >= sc.from && t <= sc.to);
@@ -70,40 +98,56 @@ export const ThreeSteps: React.FC = () => {
       {/* The steps */}
       {!stepsGone && (
         <div style={{ opacity: leave }}>
-          <StepHead n="1" caption="add one line" x={LEFT} y={HEAD} intro={intro} at={step1} />
+          <StepHead n="1" caption="write it a line per breath" x={LEFT} y={HEAD} intro={intro} at={step1} />
           <StepHead n="2" caption="record the talk" x={RIGHT} y={HEAD} intro={intro} at={step2} />
           <StepHead n="3" caption="run narrate" x={LEFT} y={HEAD3} intro={intro} at={step3} />
 
           <Fade x={LEFT} y={PANEL} at={step1} dur={0.5} rise={14}>
-            <Panel>
-              {FRONTMATTER.map((line, i) => {
-                if (i !== VOICE_LINE) return <MonoLine key={i} text={line} />;
-                const shown = prog(frame, saying, 0.45, fps);
-                const lit = prog(frame, recorded, 0.4, fps);
-                return (
-                  <div
-                    key={i}
-                    style={{
-                      position: "relative",
-                      margin: "0 -14px",
-                      padding: "0 14px",
-                      opacity: shown,
-                      transform: `translateX(${(1 - shown) * 16}px)`,
-                    }}
-                  >
-                    {/* The highlight: a gold wash with a bar at its left edge. */}
-                    <div style={{ position: "absolute", inset: 0, borderRadius: 6, background: `${ROLE.you}2A`, boxShadow: `inset 4px 0 0 ${ROLE.you}`, opacity: lit }} />
-                    <span style={{ position: "relative", color: lit > 0.5 ? ROLE.you : C.dim }}>voice:</span>
-                    <span style={{ position: "relative", color: C.text }}> {"{ provider: recorded }"}</span>
-                  </div>
-                );
+            <Panel w={COL1} h={SCRIPT_H} size={SCRIPT_MONO} opacity={recede(step2)}>
+              {SCRIPT.map((line, i) => {
+                if (i === VOICE_LINE) {
+                  // The one line: dim with the rest of the frontmatter, until it's named.
+                  const lit = prog(frame, addLine, 0.45, fps);
+                  const value = prog(frame, recorded, 0.4, fps);
+                  return (
+                    <div key={i} style={{ position: "relative", margin: "0 -14px", padding: "0 14px", opacity: mix(0.55, 1, lit) }}>
+                      {/* The highlight: a gold wash with a bar at its left edge. */}
+                      <div style={{ position: "absolute", inset: 0, borderRadius: 6, background: `${ROLE.you}2A`, boxShadow: `inset 4px 0 0 ${ROLE.you}`, opacity: lit }} />
+                      <span style={{ position: "relative", color: lit > 0.5 ? ROLE.you : C.dim }}>voice:</span>
+                      <span style={{ position: "relative", color: lit > 0.5 ? C.text : C.dim }}>{" { provider: "}</span>
+                      <span style={{ position: "relative", color: value > 0.5 ? ROLE.you : lit > 0.5 ? C.text : C.dim }}>recorded</span>
+                      <span style={{ position: "relative", color: lit > 0.5 ? C.text : C.dim }}>{" }"}</span>
+                    </div>
+                  );
+                }
+                if (FRONTMATTER.includes(i)) return <div key={i} style={{ color: C.dim, opacity: 0.55 }}>{line}</div>;
+                if (i === HEADING) {
+                  return (
+                    <div key={i}>
+                      <span style={{ color: C.dim }}>{"## "}</span>
+                      <span style={{ color: C.text }}>{line.slice(3)}</span>
+                    </div>
+                  );
+                }
+                const bullet = BULLETS.indexOf(i);
+                if (bullet >= 0) {
+                  // Each line writes on, left to right, one a breath.
+                  const shown = prog(frame, bulletAt[bullet], 0.7, fps);
+                  return (
+                    <div key={i} style={{ clipPath: `inset(0 ${(1 - shown) * 100}% 0 0)` }}>
+                      <span style={{ color: C.dim }}>{"- "}</span>
+                      <span style={{ color: C.text }}>{line.slice(2)}</span>
+                    </div>
+                  );
+                }
+                return <div key={i}>{"\u00a0"}</div>;
               })}
             </Panel>
           </Fade>
 
           <Fade x={RIGHT} y={PANEL} at={step2} dur={0.5} rise={14}>
-            <Panel>
-              <MonoLine text="videos/your-own-voice/" color={C.text} />
+            <Panel w={COL2} h={TREE_H} size={MONO} opacity={recede(step3)}>
+              <div style={{ color: C.text }}>videos/your-own-voice/</div>
               <TreeLine branch="├── " name="script.md" />
               {[
                 { branch: "└── ", name: "recordings/", at: folder },
@@ -118,7 +162,7 @@ export const ThreeSteps: React.FC = () => {
 
           <Terminal
             x={LEFT}
-            y={HEAD3 + 136}
+            y={TERMINAL}
             w={1920 - 2 * LEFT}
             at={step3}
             lines={[
@@ -137,7 +181,8 @@ export const ThreeSteps: React.FC = () => {
           </Fade>
           <Svg>
             <line x1={STRIP.x} x2={STRIP.x + STRIP.w} y1={STRIP.y} y2={STRIP.y} stroke={C.faint} strokeWidth={2} opacity={prog(frame, started - s(1), 0.4, fps)} />
-            <Waveform upTo={upTo} opacity={(t) => level(t).o} gain={(t) => level(t).g} />
+            {/* A scene recorded again on its own is drawn in the fix colour: this video was fixed as scene 5 says. */}
+            <Waveform upTo={upTo} opacity={(t) => level(t).o} gain={(t) => level(t).g} color={(t) => (TALK.scenes[sceneOf(t)]?.retake ? ROLE.fix : ROLE.you)} />
             {CUTS.map((t, i) => (
               <Line key={i} from={[talkX(t), TOP - 6]} to={[talkX(t), BOTTOM + 6]} at={take + s(i * 0.12)} dur={0.4} color={ROLE.cut} width={3} />
             ))}
@@ -163,7 +208,7 @@ export const ThreeSteps: React.FC = () => {
             return (
               <Fade key={sc.id} x={(talkX(sc.from) + talkX(sc.to)) / 2} y={BRACKET - 36} anchor="center" at={timed + s(i * 0.08)} dur={0.5} rise={18}>
                 <div style={{ position: "relative", fontFamily: FONT.mono, fontSize: 34, whiteSpace: "nowrap" }}>
-                  <span style={{ color: C.text, opacity: mix(0.6, 1, up) * (1 - glow) }}>{label}</span>
+                  <span style={{ color: sc.retake ? ROLE.fix : C.text, opacity: mix(0.6, 1, up) * (1 - glow) }}>{label}</span>
                   <span style={{ position: "absolute", left: 0, top: 0, color: ROLE.you, opacity: glow }}>{label}</span>
                 </div>
               </Fade>
@@ -189,17 +234,18 @@ const StepHead: React.FC<{ n: string; caption: string; x: number; y: number; int
   );
 };
 
-const Panel: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+const Panel: React.FC<{ children: React.ReactNode; w: number; h: number; size: number; opacity?: number }> = ({ children, w, h, size, opacity = 1 }) => (
   <div
     style={{
-      width: COL,
-      height: PANEL_H,
+      width: w,
+      height: h,
+      opacity,
       borderRadius: 12,
       border: `2px solid ${C.faint}`,
       background: C.surface,
       padding: "22px 30px",
       fontFamily: FONT.mono,
-      fontSize: MONO,
+      fontSize: size,
       lineHeight: 1.55,
       whiteSpace: "pre",
     }}
@@ -207,18 +253,6 @@ const Panel: React.FC<{ children: React.ReactNode }> = ({ children }) => (
     {children}
   </div>
 );
-
-/** A frontmatter line: the key dim, the value in text colour. */
-const MonoLine: React.FC<{ text: string; color?: string }> = ({ text, color }) => {
-  const colon = text.indexOf(":");
-  if (color || colon < 0) return <div style={{ color: color ?? C.dim }}>{text}</div>;
-  return (
-    <div>
-      <span style={{ color: C.dim }}>{text.slice(0, colon + 1)}</span>
-      <span style={{ color: C.text }}>{text.slice(colon + 1)}</span>
-    </div>
-  );
-};
 
 const TreeLine: React.FC<{ branch: string; name: string; color?: string }> = ({ branch, name, color }) => (
   <div>

@@ -1,107 +1,151 @@
 1
-00:00:00,850 --> 00:00:03,770
-You're hearing my voice, not a synthetic one.
+00:00:00,600 --> 00:00:06,800
+Hey, my name is Andrew, and in this video I want to talk about using your
 
 2
-00:00:04,090 --> 00:00:10,570
-I read this script out loud, once, and Lyceum timed every animation to my words.
+00:00:06,800 --> 00:00:08,480
+own voice with Lyceum.
 
 3
-00:00:11,030 --> 00:00:15,790
-That matters when the video is yours to present: a talk, a demo,
+00:00:09,760 --> 00:00:16,520
+A synthetic voice is great when you need a video fast, or you'd rather not record
 
 4
-00:00:15,990 --> 00:00:17,310
-an update for your team.
+00:00:16,520 --> 00:00:17,080
+yourself.
 
 5
-00:00:18,070 --> 00:00:20,890
-People listen differently to someone they know.
+00:00:17,540 --> 00:00:23,020
+But when the video is yours to present, a talk, a demo,
 
 6
-00:00:23,250 --> 00:00:28,050
-Lyceum puts each element on screen at the moment its words are spoken.
+00:00:23,340 --> 00:00:28,580
+an update for your team, people listen differently to someone they know.
 
 7
-00:00:28,310 --> 00:00:32,250
-A synthetic voice reads the script exactly, scene by scene.
+00:00:28,580 --> 00:00:31,680
+So this time, you're hearing me.
 
 8
-00:00:32,850 --> 00:00:34,150
-A person doesn't.
+00:00:32,200 --> 00:00:39,500
+I read this script out loud, once, and Lyceum timed every animation to my words.
 
 9
-00:00:34,350 --> 00:00:35,650
-I pause to think.
+00:00:41,850 --> 00:00:45,310
+Reading a script out loud is harder than it sounds.
 
 10
-00:00:35,850 --> 00:00:38,170
-I say something that isn't in the script.
+00:00:45,850 --> 00:00:50,610
+Long sentences run out of breath, and the words start to sound read.
 
 11
-00:00:38,530 --> 00:00:40,710
-Sometimes I trip over a line.
+00:00:51,130 --> 00:00:55,350
+So I wrote this as short lines, like bullet points.
 
 12
-00:00:41,890 --> 00:00:46,850
-And recording every scene separately makes the whole thing sound stitched together.
+00:00:55,790 --> 00:00:59,570
+Each line is one breath, and I pause at the end of it.
 
 13
-00:00:49,183 --> 00:00:52,303
-So I record the whole talk in one go.
+00:00:59,890 --> 00:01:05,010
+I'm still reading every word, but it sounds less like reading, and a little bit more
 
 14
-00:00:53,323 --> 00:00:57,263
-Lyceum listens to it and matches every word to the script.
+00:01:05,010 --> 00:01:05,850
+like talking.
 
 15
-00:00:57,703 --> 00:01:02,283
-Then it cuts the take into scenes, in the pauses between them.
+00:01:08,217 --> 00:01:12,897
+Lyceum puts each element on screen at the moment its words are spoken.
 
 16
-00:01:03,143 --> 00:01:09,523
-Anything I say between scenes, like next slide, falls in a gap and is dropped.
+00:01:14,057 --> 00:01:17,397
+A synthetic voice tells it exactly when that is.
 
 17
-00:01:10,183 --> 00:01:13,723
-Each scene is trimmed, and brought to the same volume.
+00:01:17,797 --> 00:01:19,317
+My voice doesn't.
 
 18
-00:01:16,083 --> 00:01:21,143
-If I stumble, Lyceum tells me which scene, and which words it didn't hear.
+00:01:20,077 --> 00:01:23,437
+I speed up, I slow down, I take a breath.
 
 19
-00:01:21,483 --> 00:01:26,243
-I record just that scene again, and it replaces that part of the take.
+00:01:24,237 --> 00:01:29,937
+So Lyceum listens to my take, and finds every word of the script in it.
 
 20
-00:01:26,923 --> 00:01:29,003
-Everything else stays as it was.
+00:01:30,617 --> 00:01:35,437
+Wherever I said a word, that's where its animation lands.
 
 21
-00:01:29,663 --> 00:01:33,203
-If I say something the script doesn't have, it keeps the audio,
+00:01:37,567 --> 00:01:40,367
+I record the whole talk in one go.
 
 22
-00:01:33,203 --> 00:01:36,803
-but warns me, because the captions won't show it.
+00:01:40,807 --> 00:01:44,687
+Recording scene by scene would sound stitched together.
 
 23
-00:01:39,183 --> 00:01:46,323
-To narrate a video yourself, add one line to the script, saying the voice is recorded.
+00:01:45,467 --> 00:01:49,807
+Lyceum cuts the take into scenes, in the pauses between them.
 
 24
-00:01:47,023 --> 00:01:49,843
-Record the whole talk into the recordings folder.
+00:01:50,307 --> 00:01:56,927
+Anything I say between scenes, like next slide, falls in a gap and is dropped.
 
 25
-00:01:50,083 --> 00:01:54,743
-Then run narrate, just as you would with a synthetic voice.
+00:01:57,547 --> 00:02:04,547
+Each scene is trimmed, the room noise is cleaned out, and every scene is brought to
 
 26
-00:01:55,563 --> 00:01:58,823
-This video started as one take.
+00:02:04,547 --> 00:02:05,407
+the same volume.
 
 27
-00:01:59,023 --> 00:02:01,783
+00:02:07,783 --> 00:02:10,363
+Nobody reads two minutes without a slip.
+
+28
+00:02:10,563 --> 00:02:15,503
+If I stumble, Lyceum tells me which scene, and which words it didn't hear.
+
+29
+00:02:15,703 --> 00:02:20,463
+I record just that scene again, and it replaces that part of the take.
+
+30
+00:02:20,963 --> 00:02:23,243
+Everything else stays as it was.
+
+31
+00:02:23,603 --> 00:02:27,783
+And if I say something the script doesn't have, it keeps the audio,
+
+32
+00:02:27,783 --> 00:02:31,183
+but warns me, because the captions won't show it.
+
+33
+00:02:33,300 --> 00:02:40,020
+To narrate a video yourself, write the script as short lines, one per breath,
+
+34
+00:02:40,320 --> 00:02:44,360
+and add one line at the top, saying the voice is recorded.
+
+35
+00:02:45,720 --> 00:02:48,920
+Record the whole talk into the recordings folder.
+
+36
+00:02:49,520 --> 00:02:54,060
+Then run narrate, just as you would with a synthetic voice.
+
+37
+00:02:54,060 --> 00:02:59,200
+This video started as one take.
+
+38
+00:03:00,180 --> 00:03:03,720
 Everything you just watched is timed to it.

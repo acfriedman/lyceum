@@ -1,0 +1,107 @@
+1
+00:00:00,850 --> 00:00:03,770
+You're hearing my voice, not a synthetic one.
+
+2
+00:00:04,090 --> 00:00:10,570
+I read this script out loud, once, and Lyceum timed every animation to my words.
+
+3
+00:00:11,030 --> 00:00:15,790
+That matters when the video is yours to present: a talk, a demo,
+
+4
+00:00:15,990 --> 00:00:17,310
+an update for your team.
+
+5
+00:00:18,070 --> 00:00:20,890
+People listen differently to someone they know.
+
+6
+00:00:23,250 --> 00:00:28,050
+Lyceum puts each element on screen at the moment its words are spoken.
+
+7
+00:00:28,310 --> 00:00:32,250
+A synthetic voice reads the script exactly, scene by scene.
+
+8
+00:00:32,850 --> 00:00:34,150
+A person doesn't.
+
+9
+00:00:34,350 --> 00:00:35,650
+I pause to think.
+
+10
+00:00:35,850 --> 00:00:38,170
+I say something that isn't in the script.
+
+11
+00:00:38,530 --> 00:00:40,710
+Sometimes I trip over a line.
+
+12
+00:00:41,890 --> 00:00:46,850
+And recording every scene separately makes the whole thing sound stitched together.
+
+13
+00:00:49,183 --> 00:00:52,303
+So I record the whole talk in one go.
+
+14
+00:00:53,323 --> 00:00:57,263
+Lyceum listens to it and matches every word to the script.
+
+15
+00:00:57,703 --> 00:01:02,283
+Then it cuts the take into scenes, in the pauses between them.
+
+16
+00:01:03,143 --> 00:01:09,523
+Anything I say between scenes, like next slide, falls in a gap and is dropped.
+
+17
+00:01:10,183 --> 00:01:13,723
+Each scene is trimmed, and brought to the same volume.
+
+18
+00:01:16,083 --> 00:01:21,143
+If I stumble, Lyceum tells me which scene, and which words it didn't hear.
+
+19
+00:01:21,483 --> 00:01:26,243
+I record just that scene again, and it replaces that part of the take.
+
+20
+00:01:26,923 --> 00:01:29,003
+Everything else stays as it was.
+
+21
+00:01:29,663 --> 00:01:33,203
+If I say something the script doesn't have, it keeps the audio,
+
+22
+00:01:33,203 --> 00:01:36,803
+but warns me, because the captions won't show it.
+
+23
+00:01:39,183 --> 00:01:46,323
+To narrate a video yourself, add one line to the script, saying the voice is recorded.
+
+24
+00:01:47,023 --> 00:01:49,843
+Record the whole talk into the recordings folder.
+
+25
+00:01:50,083 --> 00:01:54,743
+Then run narrate, just as you would with a synthetic voice.
+
+26
+00:01:55,563 --> 00:01:58,823
+This video started as one take.
+
+27
+00:01:59,023 --> 00:02:01,783
+Everything you just watched is timed to it.

@@ -2,7 +2,7 @@ import React from "react";
 import { Arrow, C, FONT, Line, Pill, Svg, Text, prog, useScene } from "#kit";
 import { Command, FileTree, Panel, ROLE, TREE, treeRowX, treeRowY, useAppear } from "./shared";
 
-// One codebase, one team: put explainers/ in the same repository and treat it like documentation.
+// One codebase, one team: put lyceum/ in the same repository and treat it like documentation.
 // The agent's ground truth sits next door at the same commit; staleness is a diff that `lyceum stale`
 // reads from the history; the committed
 // part is light; the cost is a little noise in pull requests.
@@ -118,7 +118,7 @@ export const BesideTheCode: React.FC = () => {
     { name: "your-app/", depth: 0 },
     { name: "src/", depth: 1, color: ROLE.app, highlight: { at: codebase, out: thatFolder, color: ROLE.app } },
     {
-      name: "explainers/",
+      name: "lyceum/",
       depth: 1,
       color: ROLE.lyceum,
       highlight: { at: thatFolder, out: ground, color: ROLE.lyceum },
@@ -150,7 +150,7 @@ export const BesideTheCode: React.FC = () => {
         y={PM.y}
         w={880}
         size={PM.size}
-        title="explainers/project.md"
+        title="lyceum/project.md"
         at={ground}
         out={spotting}
         border={ROLE.lyceum}
@@ -169,7 +169,7 @@ export const BesideTheCode: React.FC = () => {
       </Text>
       <Svg>
         <Arrow
-          from={[nameEnd(1, "explainers/") + 26, expY - 16]}
+          from={[nameEnd(1, "lyceum/") + 26, expY - 16]}
           to={[nameEnd(1, "src/") + 20, srcY]}
           bend={40}
           at={nextDoor}
@@ -248,7 +248,7 @@ export const BesideTheCode: React.FC = () => {
         lines={[
           { text: "src/cache/evict.ts", color: ROLE.app },
           { text: "src/cache/evict.test.ts", color: ROLE.app, at: cost + s(0.2) },
-          { text: "explainers/videos/cache/scenes/s04-eviction.tsx", color: `${ROLE.lyceum}80`, at: noise },
+          { text: "lyceum/videos/cache/scenes/s04-eviction.tsx", color: `${ROLE.lyceum}80`, at: noise },
         ]}
       />
       <Text x={RIGHT} y={prBottom + 36} size={26} color={C.dim} italic anchor="left" at={cost + s(0.6)} reveal="fade" dur={0.5}>

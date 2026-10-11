@@ -5,7 +5,7 @@
 //   lyceum init [<dir>]
 
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { basename, join, resolve } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
 
 const dir = resolve(process.argv[2] ?? ".");
 mkdirSync(dir, { recursive: true });
@@ -63,11 +63,13 @@ export const videos: { narration: Narration; scenes: SceneMap }[] = [
 `,
 );
 
-// package.json: `#kit` resolves to the kit, the lyceum dependency, and short scripts.
+// package.json: `#kit` resolves to the kit, the lyceum dependency, and short scripts. It's named after its
+// directory, unless that's `lyceum/`, which would take its own dependency's name: then after the
+// directory around it, as `<parent>-explainers`.
 const pkgPath = join(dir, "package.json");
-const pkg = existsSync(pkgPath)
-  ? JSON.parse(readFileSync(pkgPath, "utf8"))
-  : { name: basename(dir).toLowerCase().replace(/[^a-z0-9-]+/g, "-"), private: true };
+const slug = (name) => name.toLowerCase().replace(/[^a-z0-9-]+/g, "-");
+const name = slug(basename(dir)) === "lyceum" ? `${slug(basename(dirname(dir)))}-explainers` : slug(basename(dir));
+const pkg = existsSync(pkgPath) ? JSON.parse(readFileSync(pkgPath, "utf8")) : { name, private: true };
 const before = JSON.stringify(pkg);
 pkg.type ??= "module";
 pkg.imports = { "#kit": "lyceum/kit", ...(pkg.imports ?? {}) };

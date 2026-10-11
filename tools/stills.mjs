@@ -39,9 +39,12 @@ if (!timing) {
 const fps = narration.fps;
 const last = timing.frames - 1;
 const every = Number(opt("every") ?? 4);
-const frames = opt("at")
-  ? opt("at").split(",").map((s) => Math.min(last, Math.round(Number(s) * fps)))
+const requested = opt("at")
+  ? opt("at").split(",").map((s) => Math.round(Number(s) * fps))
   : Array.from({ length: Math.floor(last / (every * fps)) + 1 }, (_, i) => Math.round(i * every * fps));
+const past = requested.filter((f) => f > last).map((f) => (f / fps).toFixed(1) + "s");
+if (past.length) console.warn(`${scene} is ${(timing.frames / fps).toFixed(1)}s long: ${past.join(", ")} past its end, drawn as its last frame`);
+const frames = requested.map((f) => Math.min(last, f));
 
 await holdSlot("browser");
 const tmp = mkdtempSync(join(tmpdir(), "explainer-stills-"));

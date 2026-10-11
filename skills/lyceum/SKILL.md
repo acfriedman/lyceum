@@ -166,7 +166,8 @@ Before any scene, write `scenes/shared.tsx`. It holds the vocabulary every scene
   hard-coded colour, so the scene draws right in either theme: a panel is `C.surface`, a recess
   `C.sunken`);
 - standard positions for recurring layouts;
-- recurring props.
+- recurring props. Keep a prop's appear animation apart from its emphasis: one that scales with its
+  opacity also shrinks when a scene dims it.
 
 Build scene 1 yourself. It proves the kit works for this topic, and it sets the idiom the other scenes
 copy. Check it with a contact sheet:

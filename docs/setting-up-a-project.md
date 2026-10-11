@@ -28,7 +28,7 @@ In a JavaScript monorepo, keep the project out of the way:
 
 The deciding question is what the videos are tied to.
 
-**Put them in the code repository** (`explainers/` beside `src/`) when they explain that codebase to the
+**Put them in the code repository** (`lyceum/` beside `src/`) when they explain that codebase to the
 people who work on it. Treat them like `docs/`:
 - **Ground truth is `..`.** The agent reads the code at the same commit the video describes, in any checkout
   or worktree.
@@ -50,7 +50,7 @@ In that case, the Ground truth section of `project.md` names the other checkouts
 layout, so say so in `project.md`. In a script's `sources:`, a path into one of them starts with its
 directory name (`api/src/cache.ts`), and `lyceum stale` checks it in that checkout.
 
-**The default:** an `explainers/` directory in the repository, for videos about one codebase. Use a
+**The default:** a `lyceum/` directory in the repository, for videos about one codebase. Use a
 dedicated repository for videos that cover several repositories or a whole product.
 
 ## Give your agent the skill

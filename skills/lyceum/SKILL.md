@@ -16,7 +16,7 @@ it works.
 
 A Lyceum project is the directory holding `lyceum.config.json`, found at or above the working directory.
 Run every command from there. If there is none, ask the user where the videos should live and run
-`npx lyceum init <dir>`, then `npm install`. Suggest `explainers/` inside the repository the videos
+`npx lyceum init <dir>`, then `npm install`. Suggest `lyceum/` inside the repository the videos
 explain, or a repository of its own for videos that span several repositories or a whole product. Never
 add Lyceum to an application's own `package.json`.
 

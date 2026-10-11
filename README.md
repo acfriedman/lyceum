@@ -48,9 +48,9 @@ code and systems. Nothing in it is specific to code, though.
 In the repository whose story you want to tell, or anywhere:
 
 ```bash
-npx github:acfriedman/lyceum init explainers   # creates explainers/ as a Lyceum project
-cd explainers && npm install
-npx lyceum skill link                           # gives your coding agent the Lyceum skill
+npx github:acfriedman/lyceum init lyceum   # creates lyceum/ as a Lyceum project
+cd lyceum && npm install
+npx lyceum skill link                       # gives your coding agent the Lyceum skill
 ```
 
 Then ask your agent for a video: "make a 5-minute explainer on how our cache invalidation works." It's
@@ -62,7 +62,7 @@ Where should the project live, and what changes when a team shares it? See
 ## A project
 
 ```
-explainers/
+lyceum/
   lyceum.config.json       videos dir, cache dir, project guide, default voice, pronunciations
   project.md               what holds for every video: audience, ground truth, house rules
   package.json             depends on lyceum; maps "#kit" to lyceum/kit

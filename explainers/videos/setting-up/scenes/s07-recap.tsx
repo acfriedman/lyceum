@@ -165,7 +165,7 @@ export const Recap: React.FC = () => {
     { name: "tests/", depth: 1, color: ROLE.app, at: rowAt(2) },
     { name: "package.json", depth: 1, at: rowAt(3) },
     {
-      name: "explainers/",
+      name: "lyceum/",
       depth: 1,
       color: ROLE.lyceum,
       at: rowAt(4),
@@ -240,7 +240,7 @@ export const Recap: React.FC = () => {
         y={GUIDE.y}
         w={GUIDE.w}
         size={GUIDE.size}
-        title="explainers/project.md"
+        title="lyceum/project.md"
         at={write}
         out={so}
         border={ROLE.lyceum}

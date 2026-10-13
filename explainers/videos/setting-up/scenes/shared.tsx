@@ -4,7 +4,7 @@
 import React from "react";
 import { C, FONT, prog, useScene, visibility } from "#kit";
 
-/** Role colours. Your app's code is blue, the Lyceum project (explainers/) teal, you gold, a
+/** Role colours. Your app's code is blue, the Lyceum project (lyceum/) teal, you gold, a
  *  teammate purple, the coding agent green, commands yellow. Ignored or excluded things are dim;
  *  conflicts and failures red. */
 export const ROLE = {

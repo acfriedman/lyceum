@@ -3,7 +3,8 @@
 // Format: optional YAML frontmatter, then an optional intent section (what the video is for: anything
 // before the first scene, never narrated), then one `## NN · id — Title` heading per scene. Lines
 // starting with `> ` are the visual description; every other paragraph is narration, spoken in order.
-// HTML comments are ignored.
+// Narration may be written as a bulleted list, a line per breath, to read from: the bullets are only
+// its shape, and the lines run on as one paragraph. HTML comments are ignored.
 
 import { readFileSync } from "node:fs";
 import YAML from "yaml";
@@ -52,7 +53,7 @@ export function parseScript(path) {
     if (line.startsWith(">")) {
       current.visual.push(line.replace(/^>\s?/, "").replace(/^Visual:\s*/, ""));
     } else {
-      current.narration.push(line);
+      current.narration.push(line.replace(/^\s*[-*+]\s+/, ""));
     }
   }
 

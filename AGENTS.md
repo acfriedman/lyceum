@@ -40,8 +40,8 @@ explainers/         a Lyceum project of videos about Lyceum, made with this chec
 
 ## Rules for changes
 
-- **Keep the narration cache stable.** Clips are cached by a hash of the voice object and the spoken text.
-  Changing a default voice's fields, or their key order, re-bills every project's narration.
+- **Keep the narration cache stable.** Clips are cached by a hash of the voice object and the spoken text
+  (and, for a recording, the take). Changing a default voice's fields, or their key order, re-bills every project's narration.
 - **Render fingerprints:** they include every kit file and the pinned Chrome build (`CHROME_BUILD` in
   `tools/chrome.mjs`). Changing either re-renders every scene of every project once. That's correct, but
   say so in the commit.

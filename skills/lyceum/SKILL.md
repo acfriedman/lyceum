@@ -112,7 +112,6 @@ wait. They may waive review ("I trust your script"). Respect that, but still sho
 ```bash
 npx lyceum narrate <slug>                         # OpenAI gpt-4o-mini-tts, voice "cedar" (default)
 npx lyceum narrate <slug> --provider say          # free macOS draft voice
-npx lyceum narrate <slug> --provider elevenlabs   # ElevenLabs (word timings from the API)
 npx lyceum narrate <slug> --only <scene>          # one scene
 ```
 
@@ -120,9 +119,9 @@ This writes `narration.json` (durations, word timings, timeline) and `captions.s
 - **Cost and speed:** every paragraph is voiced at once, so narration takes about as long as the longest
   paragraph plus alignment, well under a minute. Clips are cached by a hash of voice and text, so only
   changed text is billed: roughly $0.15 per 10-minute video with OpenAI.
-- **Keys:** `OPENAI_KEY` (or `OPENAI_API_KEY`) and `ELEVEN_LABS_KEY` (or `ELEVENLABS_API_KEY`), from the
-  environment or the nearest `.env` at or above the project.
-- **Voice:** a script can pin a voice in frontmatter: `voice: { provider: elevenlabs }`, or
+- **Key:** `OPENAI_KEY` (or `OPENAI_API_KEY`), from the environment or the nearest `.env` at or above the
+  project.
+- **Voice:** a script can pin a voice in frontmatter: `voice: { provider: say }`, or
   `{ id: marin, instructions: … }` for another OpenAI voice.
 - **Loudness:** every clip (and, for OpenAI, every paragraph) is brought to −23 LUFS with one constant
   gain, so separate takes don't jump in volume. Pitch and pacing still vary from take to take; this doesn't

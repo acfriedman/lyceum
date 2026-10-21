@@ -2,18 +2,18 @@
 // Narrates a video's script: one audio clip per scene, with word timings, plus the timeline the
 // composition and the captions are laid out from.
 //
-//   lyceum narrate <video> [--provider openai|elevenlabs|say] [--only <scene-id>]
+//   lyceum narrate <video> [--provider openai|say] [--only <scene-id>]
 //
 // Each clip is cached under .cache/narration by a hash of everything that shapes the audio (provider,
 // voice, model, settings, spoken text), so re-running after a script edit only pays for the scenes
 // whose narration changed. Every clip is brought to the same loudness (LOUDNESS), so separate takes
-// don't jump in volume. Keys (OPENAI_KEY or OPENAI_API_KEY, ELEVEN_LABS_KEY or ELEVENLABS_API_KEY) come from the environment or from the
+// don't jump in volume. The key (OPENAI_KEY or OPENAI_API_KEY) comes from the environment or from the
 // nearest .env walking up from the project.
 //
 // The default voice is OpenAI's gpt-4o-mini-tts "cedar". A script picks another with frontmatter
-// `voice: { provider, id, … }`; fields override that provider's defaults below. Only ElevenLabs
-// reports word timings itself; for the others, align.py (beside this file) derives them with local Whisper
-// (a Python venv shared by every project, under the Lyceum home directory, created on first use).
+// `voice: { provider, id, … }`; fields override that provider's defaults below. Word timings come from
+// align.py (beside this file), which derives them with local Whisper (a Python venv shared by every
+// project, under the Lyceum home directory, created on first use).
 //
 // The project's lyceum.config.json can set a default `voice`, plus `pronounce` and `allowSpoken`
 // entries that apply to every script; a script's own frontmatter wins.
@@ -55,13 +55,6 @@ const VOICES = {
     // raw speech is cached apart (see openAISpeech), so it re-processes clips without re-billing them.
     chunk: "paragraph+sentinel+loudness@5",
   },
-  elevenlabs: {
-    provider: "elevenlabs",
-    id: "TX3LPaxmHKxFdv7VOQHJ", // Liam
-    model: "eleven_multilingual_v2",
-    settings: { stability: 0.5, similarity_boost: 0.75, style: 0, use_speaker_boost: true },
-    seed: 7,
-  },
   say: { provider: "say", id: "Samantha", rate: 180 },
 };
 
@@ -82,7 +75,7 @@ function parseArgs(argv) {
     else args.dir = argv[i];
   }
   if (!args.dir) {
-    console.error("usage: lyceum narrate <video> [--provider openai|elevenlabs|say] [--only <scene-id>]");
+    console.error("usage: lyceum narrate <video> [--provider openai|say] [--only <scene-id>]");
     process.exit(2);
   }
   return args;
@@ -100,25 +93,6 @@ function secret(...names) {
     }
   }
   throw new Error(`${names.join(" / ")} is not set, and no .env at or above ${ROOT} defines it`);
-}
-
-/** Characters with start/end seconds → words with start/end seconds. */
-function wordsFromAlignment({ characters, character_start_times_seconds: starts, character_end_times_seconds: ends }) {
-  const words = [];
-  let word = null;
-  characters.forEach((ch, i) => {
-    if (/\s/.test(ch)) {
-      word = null;
-      return;
-    }
-    if (!word) {
-      word = { w: "", s: starts[i], e: ends[i] };
-      words.push(word);
-    }
-    word.w += ch;
-    word.e = ends[i];
-  });
-  return words;
 }
 
 /** The Python that runs align.py: a venv with mlx-whisper, created with uv on first use. */
@@ -153,21 +127,6 @@ async function align(text, mp3Path, sentinel) {
 function probeDuration(file) {
   const out = execFileSync("ffprobe", ["-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", file]);
   return Number(String(out).trim());
-}
-
-async function synthesizeElevenLabs(text, voice, mp3Path) {
-  const response = await fetch(
-    `https://api.elevenlabs.io/v1/text-to-speech/${voice.id}/with-timestamps?output_format=mp3_44100_128`,
-    {
-      method: "POST",
-      headers: { "xi-api-key": secret("ELEVEN_LABS_KEY", "ELEVENLABS_API_KEY"), "Content-Type": "application/json" },
-      body: JSON.stringify({ text, model_id: voice.model, voice_settings: voice.settings, seed: voice.seed }),
-    },
-  );
-  if (!response.ok) throw new Error(`ElevenLabs ${response.status}: ${await response.text()}`);
-  const body = await response.json();
-  writeFileSync(mp3Path, Buffer.from(body.audio_base64, "base64"));
-  return wordsFromAlignment(body.alignment);
 }
 
 // The level every clip is brought to: integrated loudness in LUFS (EBU R128's reference, about where
@@ -303,7 +262,7 @@ async function synthesizeSay(text, voice, mp3Path) {
   return (await align(text, mp3Path)).words;
 }
 
-const SYNTHESIZE = { openai: synthesizeOpenAI, elevenlabs: synthesizeElevenLabs, say: synthesizeSay };
+const SYNTHESIZE = { openai: synthesizeOpenAI, say: synthesizeSay };
 
 // Narration says things in full: no acronyms, no shortenings. Listeners can't see the spelling, and
 // "op" or "GCD" makes them decode instead of follow. Checked before anything is billed.
@@ -369,7 +328,7 @@ async function main() {
   }
 
   // Every scene that needs voicing is voiced at once; each scene's paragraphs run concurrently too.
-  if (provider !== "elevenlabs") alignerPython(); // create the venv once, before any parallel use
+  alignerPython(); // create the venv once, before any parallel use
   const out = await Promise.all(
     scenes.map(async (scene) => {
       const text = spokenText(scene.narration, meta.pronounce);

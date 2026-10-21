@@ -2,13 +2,13 @@
 // Narrates a video's script: one audio clip per scene, with word timings, plus the timeline the
 // composition and the captions are laid out from.
 //
-//   lyceum narrate <video> [--provider openai|say] [--only <scene-id>]
+//   lyceum narrate <video> [--provider openai|gemini|say] [--only <scene-id>]
 //
 // Each clip is cached under .cache/narration by a hash of everything that shapes the audio (provider,
 // voice, model, settings, spoken text), so re-running after a script edit only pays for the scenes
 // whose narration changed. Every clip is brought to the same loudness (LOUDNESS), so separate takes
-// don't jump in volume. The key (OPENAI_KEY or OPENAI_API_KEY) comes from the environment or from the
-// nearest .env walking up from the project.
+// don't jump in volume. Keys (OPENAI_KEY or OPENAI_API_KEY, GEMINI_API_KEY) come from the environment or
+// from the nearest .env walking up from the project.
 //
 // The default voice is OpenAI's gpt-4o-mini-tts "cedar". A script picks another with frontmatter
 // `voice: { provider, id, … }`; fields override that provider's defaults below. Word timings come from
@@ -40,6 +40,11 @@ const DEFAULTS = {
   tail: 1.1,
 };
 
+// Hosted voices are voiced paragraph by paragraph, with a trimmed sentinel, each checked against the
+// script and loudness-normalized (see byParagraph). Bump the version when that processing changes: the
+// raw speech is cached apart (see cachedSpeech), so it re-processes clips without re-billing them.
+const PARAGRAPHS = "paragraph+sentinel+loudness@5";
+
 // Each provider's default voice. The object's key order is part of the cache hash: keep it stable.
 const VOICES = {
   openai: {
@@ -50,10 +55,16 @@ const VOICES = {
       "Voice: a calm, curious explainer narrator in the style of 3Blue1Brown. Tone: warm, intelligent, " +
       "unhurried. Pacing: measured, with brief natural pauses at commas and full stops; slightly slower " +
       "on key ideas. Never rushed, never theatrical.",
-    // Voiced paragraph by paragraph, with a trimmed sentinel, each checked against the script and
-    // loudness-normalized (see synthesizeOpenAI). Bump the version when that processing changes: the
-    // raw speech is cached apart (see openAISpeech), so it re-processes clips without re-billing them.
-    chunk: "paragraph+sentinel+loudness@5",
+    chunk: PARAGRAPHS,
+  },
+  gemini: {
+    provider: "gemini",
+    id: "Charon",
+    model: "gemini-3.8-flash-tts",
+    // Sent as Gemini's style, apart from the text, which it reads verbatim. Kept short: Google warns
+    // that long style directions make the voice drift.
+    instructions: "A calm, curious explainer narrator: warm, intelligent and unhurried, never rushed or theatrical.",
+    chunk: PARAGRAPHS,
   },
   say: { provider: "say", id: "Samantha", rate: 180 },
 };
@@ -75,7 +86,7 @@ function parseArgs(argv) {
     else args.dir = argv[i];
   }
   if (!args.dir) {
-    console.error("usage: lyceum narrate <video> [--provider openai|say] [--only <scene-id>]");
+    console.error("usage: lyceum narrate <video> [--provider openai|gemini|say] [--only <scene-id>]");
     process.exit(2);
   }
   return args;
@@ -113,11 +124,11 @@ const whisperSlot = (task) => withSlot("whisper", task);
 
 /** Word timings for a clip, from local Whisper matched back to the script's words, plus the script
  *  words Whisper never heard (`missing`). Paths are unique per clip, so calls may run concurrently. */
-async function align(text, mp3Path, sentinel) {
-  const textPath = mp3Path.replace(/\.mp3$/, ".txt");
+async function align(text, audioPath, sentinel) {
+  const textPath = audioPath.replace(/\.\w+$/, ".txt");
   writeFileSync(textPath, text);
   const { stdout } = await whisperSlot(() =>
-    promisify(execFile)(alignerPython(), [join(dirname(fileURLToPath(import.meta.url)), "align.py"), mp3Path, textPath, ...(sentinel ? [sentinel] : [])], {
+    promisify(execFile)(alignerPython(), [join(dirname(fileURLToPath(import.meta.url)), "align.py"), audioPath, textPath, ...(sentinel ? [sentinel] : [])], {
       maxBuffer: 16 * 1024 * 1024,
     }),
   );
@@ -163,43 +174,77 @@ function normalizeLoudness(inPath, outPath) {
 const PARAGRAPH_GAP = 0.45;
 const ATTEMPTS = 3;
 // gpt-4o-mini-tts often drops an input's last sentence (measured: ~70% of the time for a short
-// closing one). A throwaway sentence after it absorbs the drop; the audio is cut before it.
+// closing one). A throwaway sentence after it absorbs the drop; the audio is cut before it. Gemini is
+// voiced the same way, so a drop there is caught too.
 const SENTINEL = "Okay.";
 
 /**
- * One billed OpenAI speech request, cached under .cache/tts-raw by exactly what was sent (and the
- * attempt number, so a retry is a fresh take). The audio is kept *before* any trimming or
- * alignment: changing how clips are processed never pays for the same speech twice.
+ * One billed speech request, cached under .cache/tts-raw by exactly what was sent (and the attempt
+ * number, so a retry is a fresh take). The audio is kept *before* any trimming or alignment: changing
+ * how clips are processed never pays for the same speech twice.
  */
-async function openAISpeech(voice, input, attempt) {
-  const request = { model: voice.model, voice: voice.id, input, instructions: voice.instructions, response_format: "mp3" };
+async function cachedSpeech(request, attempt, extension, fetchAudio) {
   const key = createHash("sha256").update(JSON.stringify({ request, attempt })).digest("hex").slice(0, 16);
-  const rawPath = join(CACHE_ROOT, "tts-raw", `${key}.mp3`);
+  const rawPath = join(CACHE_ROOT, "tts-raw", `${key}.${extension}`);
   if (existsSync(rawPath)) return rawPath;
   mkdirSync(dirname(rawPath), { recursive: true });
-  const response = await fetch("https://api.openai.com/v1/audio/speech", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${secret("OPENAI_KEY", "OPENAI_API_KEY")}`, "Content-Type": "application/json" },
-    body: JSON.stringify(request),
-  });
-  if (!response.ok) throw new Error(`OpenAI ${response.status}: ${await response.text()}`);
-  writeFileSync(rawPath, Buffer.from(await response.arrayBuffer()));
+  writeFileSync(rawPath, await fetchAudio(request));
   return rawPath;
 }
 
+function openAISpeech(voice, input, attempt) {
+  const request = { model: voice.model, voice: voice.id, input, instructions: voice.instructions, response_format: "mp3" };
+  return cachedSpeech(request, attempt, "mp3", async () => {
+    const response = await fetch("https://api.openai.com/v1/audio/speech", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${secret("OPENAI_KEY", "OPENAI_API_KEY")}`, "Content-Type": "application/json" },
+      body: JSON.stringify(request),
+    });
+    if (!response.ok) throw new Error(`OpenAI ${response.status}: ${await response.text()}`);
+    return Buffer.from(await response.arrayBuffer());
+  });
+}
+
+/** Gemini reads `text` verbatim and takes the delivery as a separate style; it answers with a WAV. */
+function geminiSpeech(voice, input, attempt) {
+  const annotations = voice.instructions ? [{ type: "speech_metadata", style: voice.instructions }] : [];
+  const request = {
+    model: voice.model,
+    input: [{ type: "user_input", content: [{ type: "text", text: input, annotations }] }],
+    response_format: { type: "audio" },
+    generation_config: { speech_config: [{ voice: voice.id }] },
+  };
+  return cachedSpeech(request, attempt, "wav", async () => {
+    const response = await fetch("https://generativelanguage.googleapis.com/v1beta/interactions", {
+      method: "POST",
+      headers: { "x-goog-api-key": secret("GEMINI_API_KEY"), "Content-Type": "application/json" },
+      body: JSON.stringify(request),
+    });
+    if (!response.ok) throw new Error(`Gemini ${response.status}: ${await response.text()}`);
+    const { steps = [] } = await response.json();
+    const audio = steps
+      .filter((step) => step.type === "model_output")
+      .flatMap((step) => step.content ?? [])
+      .filter((part) => part.type === "audio")
+      .at(-1);
+    if (!audio?.data) throw new Error("Gemini returned no audio");
+    return Buffer.from(audio.data, "base64");
+  });
+}
+
 /**
- * OpenAI voices a scene one paragraph at a time (all paragraphs concurrently), each with SENTINEL
- * appended. Each paragraph is aligned against its real text, cut between its last word and the
- * sentinel, checked for skipped words (and retried), and brought to LOUDNESS (each is a separate take,
- * so they differ), then the paragraphs are joined with a short pause.
+ * A hosted voice reads a scene one paragraph at a time (all paragraphs concurrently), each with
+ * SENTINEL appended. Each paragraph is aligned against its real text, cut between its last word and
+ * the sentinel, checked for skipped words (and retried), and brought to LOUDNESS (each is a separate
+ * take, so they differ), then the paragraphs are joined with a short pause.
  */
-async function synthesizeOpenAI(text, voice, mp3Path, label) {
+const byParagraph = (speech) => async (text, voice, mp3Path, label) => {
   const paragraphs = text.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean);
   const parts = await Promise.all(
     paragraphs.map(async (paragraph, index) => {
       const partPath = mp3Path.replace(/\.mp3$/, `.p${index}.mp3`);
       for (let attempt = 1; ; attempt++) {
-        const rawPath = await openAISpeech(voice, `${paragraph} ${SENTINEL}`, attempt);
+        const rawPath = await speech(voice, `${paragraph} ${SENTINEL}`, attempt);
         const aligned = await align(paragraph, rawPath, SENTINEL);
         if (aligned.missing.length === 0) {
           cutAfterLastWord(rawPath, partPath, aligned);
@@ -213,7 +258,7 @@ async function synthesizeOpenAI(text, voice, mp3Path, label) {
     }),
   );
   return joinParts(parts, mp3Path);
-}
+};
 
 /**
  * Trims a clip just after its last scripted word (halfway to the sentinel, when it was spoken) and
@@ -262,7 +307,7 @@ async function synthesizeSay(text, voice, mp3Path) {
   return (await align(text, mp3Path)).words;
 }
 
-const SYNTHESIZE = { openai: synthesizeOpenAI, say: synthesizeSay };
+const SYNTHESIZE = { openai: byParagraph(openAISpeech), gemini: byParagraph(geminiSpeech), say: synthesizeSay };
 
 // Narration says things in full: no acronyms, no shortenings. Listeners can't see the spelling, and
 // "op" or "GCD" makes them decode instead of follow. Checked before anything is billed.

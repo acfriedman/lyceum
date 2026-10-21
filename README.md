@@ -35,6 +35,7 @@ code and systems. Nothing in it is specific to code, though.
   Google's Chrome for Testing, pinned, once per machine, into Lyceum's cache directory.
 - **A voice:**
   - an OpenAI API key (default voice, about $0.15 per 10-minute video); or
+  - a Gemini API key (Google's Gemini text-to-speech); or
   - macOS `say`, free, for drafts.
 - **Apple Silicon and [uv](https://docs.astral.sh/uv/)** for word timings: Lyceum aligns the narration
   with local Whisper (mlx-whisper).
@@ -81,7 +82,7 @@ lyceum/
 | `videos` | `"videos"` | where the videos live |
 | `cache` | `".cache"` | where regenerable files go |
 | `project` | `"project.md"` | the project guide the agent reads first (older projects: `brief`) |
-| `voice` | OpenAI `cedar` | default voice, e.g. `{ "provider": "say" }` or `{ "id": "marin" }` |
+| `voice` | OpenAI `cedar` | default voice, e.g. `{ "provider": "gemini" }` or `{ "id": "marin" }` |
 | `pronounce` | `{}` | written → spoken, for every script (a script's own map wins) |
 | `allowSpoken` | `[]` | acronyms the narration check should allow |
 | `captions` | `"track"` | `"track"`: subtitles viewers turn on; `"burned"`: drawn into the picture (a script's `captions:` wins) |

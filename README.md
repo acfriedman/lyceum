@@ -35,11 +35,9 @@ code and systems. Nothing in it is specific to code, though.
   Google's Chrome for Testing, pinned, once per machine, into Lyceum's cache directory.
 - **A voice:**
   - an OpenAI API key (default voice, about $0.15 per 10-minute video); or
-  - an ElevenLabs key; or
   - macOS `say`, free, for drafts.
-- **Apple Silicon and [uv](https://docs.astral.sh/uv/)** for word timings with the OpenAI or `say`
-  voices: Lyceum aligns them with local Whisper (mlx-whisper). ElevenLabs reports timings itself, so it
-  works anywhere.
+- **Apple Silicon and [uv](https://docs.astral.sh/uv/)** for word timings: Lyceum aligns the narration
+  with local Whisper (mlx-whisper).
 - **A coding agent** that reads [Agent Skills](https://agentskills.io): Claude Code, Codex CLI, Gemini
   CLI, Cursor, GitHub Copilot and others.
 
@@ -83,7 +81,7 @@ lyceum/
 | `videos` | `"videos"` | where the videos live |
 | `cache` | `".cache"` | where regenerable files go |
 | `project` | `"project.md"` | the project guide the agent reads first (older projects: `brief`) |
-| `voice` | OpenAI `cedar` | default voice, e.g. `{ "provider": "elevenlabs" }` or `{ "id": "marin" }` |
+| `voice` | OpenAI `cedar` | default voice, e.g. `{ "provider": "say" }` or `{ "id": "marin" }` |
 | `pronounce` | `{}` | written → spoken, for every script (a script's own map wins) |
 | `allowSpoken` | `[]` | acronyms the narration check should allow |
 | `captions` | `"track"` | `"track"`: subtitles viewers turn on; `"burned"`: drawn into the picture (a script's `captions:` wins) |

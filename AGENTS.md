@@ -42,6 +42,9 @@ explainers/         a Lyceum project of videos about Lyceum, made with this chec
 
 - **Keep the narration cache stable.** Clips are cached by a hash of the voice object and the spoken text.
   Changing a default voice's fields, or their key order, re-bills every project's narration.
+- **The Whisper pin:** `WHISPER` in `tools/narrate.mjs` pins the mlx-whisper release and the model's
+  revision, and a project can override it under `whisper`. Each release gets its own venv in the Lyceum
+  home directory. Changing the pin doesn't re-align clips already cached, only new ones.
 - **Render fingerprints:** they include every kit file and the pinned Chrome build (`CHROME_BUILD` in
   `tools/chrome.mjs`). Changing either re-renders every scene of every project once. That's correct, but
   say so in the commit.

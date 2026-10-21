@@ -15,8 +15,9 @@
 // align.py (beside this file), which derives them with local Whisper (a Python venv shared by every
 // project, under the Lyceum home directory, created on first use).
 //
-// The project's lyceum.config.json can set a default `voice`, plus `pronounce` and `allowSpoken`
-// entries that apply to every script; a script's own frontmatter wins.
+// The project's lyceum.config.json can set a default `voice`, pin each provider's voice under `voices`
+// (its model, say), and add `pronounce` and `allowSpoken` entries that apply to every script; a
+// script's own frontmatter wins.
 
 import { createHash } from "node:crypto";
 import { execFile, execFileSync, spawnSync } from "node:child_process";
@@ -27,7 +28,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { toSrt } from "./captions.mjs";
 import { parseScript, spokenText } from "./script.mjs";
-import { CACHE as CACHE_ROOT, CONFIG, HOME, ROOT, preparePublic, videoDir as resolveVideoDir, videoSlug } from "./paths.mjs";
+import { CACHE as CACHE_ROOT, CONFIG, CONFIG_FILE, HOME, ROOT, preparePublic, videoDir as resolveVideoDir, videoSlug } from "./paths.mjs";
 
 const CACHE = join(CACHE_ROOT, "narration");
 
@@ -69,11 +70,19 @@ const VOICES = {
   say: { provider: "say", id: "Samantha", rate: 180 },
 };
 
-/** The voice a run uses: `--provider` wins, then the script's `voice:`, then OpenAI. */
+/**
+ * The voice a run uses: `--provider` wins, then the script's `voice:`, then OpenAI. Its defaults are
+ * that provider's VOICES entry with the project's `voices` entry for it on top, whichever way the
+ * provider was chosen. Overrides keep VOICES' key order, so a project without them keeps its cache.
+ */
 function resolveVoice(cliProvider, scripted = {}) {
+  const expected = `expected ${Object.keys(VOICES).join(", ")}`;
+  for (const name of Object.keys(CONFIG.voices)) {
+    if (!VOICES[name]) throw new Error(`${CONFIG_FILE}: unknown provider "${name}" under voices (${expected})`);
+  }
   const provider = cliProvider ?? scripted.provider ?? "openai";
-  const base = VOICES[provider];
-  if (!base) throw new Error(`unknown provider "${provider}" (expected ${Object.keys(VOICES).join(", ")})`);
+  if (!VOICES[provider]) throw new Error(`unknown provider "${provider}" (${expected})`);
+  const base = { ...VOICES[provider], ...CONFIG.voices[provider], provider };
   // The script's overrides describe its own provider's voice; they don't carry over to another one.
   return (scripted.provider ?? "openai") === provider ? { ...base, ...scripted, provider } : base;
 }
@@ -106,16 +115,41 @@ function secret(...names) {
   throw new Error(`${names.join(" / ")} is not set, and no .env at or above ${ROOT} defines it`);
 }
 
-/** The Python that runs align.py: a venv with mlx-whisper, created with uv on first use. */
+// The Whisper that aligns narration, pinned like the renderer's Chrome: the mlx-whisper release and the
+// model's revision. A project can pin others under `whisper` in lyceum.config.json. Each release gets
+// its own venv and each revision its own download, so changing a pin never reuses the old one. Clips
+// already cached keep the word timings they were accepted with.
+const WHISPER = {
+  version: "0.4.3",
+  model: "mlx-community/whisper-large-v3-turbo",
+  revision: "a4aaeec0636e6fef84abdcbe3544cb2bf7e9f6fb",
+  ...CONFIG.whisper,
+};
+const ALIGN_PY = join(dirname(fileURLToPath(import.meta.url)), "align.py");
+
+/** The Python that runs align.py: a venv with the pinned mlx-whisper, created with uv on first use. */
 function alignerPython() {
-  const venv = join(HOME, "py");
-  const python = join(venv, "bin", "python");
-  if (!existsSync(python)) {
-    console.log(`  creating ${venv} (mlx-whisper) for word alignment…`);
-    execFileSync("uv", ["venv", "-q", "--python", "3.12", venv], { stdio: "inherit" });
-    execFileSync("uv", ["pip", "install", "-q", "mlx-whisper"], { stdio: "inherit", env: { ...process.env, VIRTUAL_ENV: venv } });
+  const venv = join(HOME, `whisper-${WHISPER.version}`);
+  const installed = join(venv, ".installed"); // written last, so an interrupted install is redone
+  if (!existsSync(installed)) {
+    console.log(`  creating ${venv} (mlx-whisper ${WHISPER.version}) for word alignment…`);
+    execFileSync("uv", ["venv", "-q", "--clear", "--python", "3.12", venv], { stdio: "inherit" });
+    execFileSync("uv", ["pip", "install", "-q", `mlx-whisper==${WHISPER.version}`], { stdio: "inherit", env: { ...process.env, VIRTUAL_ENV: venv } });
+    writeFileSync(installed, `mlx-whisper==${WHISPER.version}\n`);
   }
-  return python;
+  return join(venv, "bin", "python");
+}
+
+let modelDir;
+/** The pinned Whisper model's local directory, downloaded on first use (about 1.6 GB, once per revision). */
+function whisperModel() {
+  const python = alignerPython();
+  try {
+    modelDir ??= String(execFileSync(python, [ALIGN_PY, "--fetch", WHISPER.model, WHISPER.revision], { stdio: ["ignore", "pipe", "inherit"] })).trim();
+  } catch {
+    throw new Error(`couldn't fetch the Whisper model ${WHISPER.model} at revision ${WHISPER.revision} (see above)`);
+  }
+  return modelDir;
 }
 
 // Whisper loads its model per process, so alignments take machine-wide slots (see slots.mjs): the cap
@@ -128,7 +162,7 @@ async function align(text, audioPath, sentinel) {
   const textPath = audioPath.replace(/\.\w+$/, ".txt");
   writeFileSync(textPath, text);
   const { stdout } = await whisperSlot(() =>
-    promisify(execFile)(alignerPython(), [join(dirname(fileURLToPath(import.meta.url)), "align.py"), audioPath, textPath, ...(sentinel ? [sentinel] : [])], {
+    promisify(execFile)(alignerPython(), [ALIGN_PY, audioPath, textPath, whisperModel(), ...(sentinel ? [sentinel] : [])], {
       maxBuffer: 16 * 1024 * 1024,
     }),
   );
@@ -373,7 +407,7 @@ async function main() {
   }
 
   // Every scene that needs voicing is voiced at once; each scene's paragraphs run concurrently too.
-  alignerPython(); // create the venv once, before any parallel use
+  whisperModel(); // create the venv and fetch the model once, before any parallel use
   const out = await Promise.all(
     scenes.map(async (scene) => {
       const text = spokenText(scene.narration, meta.pronounce);

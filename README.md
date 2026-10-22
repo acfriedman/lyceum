@@ -83,6 +83,8 @@ lyceum/
 | `cache` | `".cache"` | where regenerable files go |
 | `project` | `"project.md"` | the project guide the agent reads first (older projects: `brief`) |
 | `voice` | OpenAI `cedar` | default voice, e.g. `{ "provider": "gemini" }` or `{ "id": "marin" }` |
+| `voices` | `{}` | per provider, overrides of its voice wherever it's used, e.g. a pinned model: `{ "openai": { "model": "gpt-4o-mini-tts-2025-12-15" } }` |
+| `whisper` | mlx-whisper 0.4.3, `whisper-large-v3-turbo` at a fixed revision | the Whisper that times the words: `{ "version", "model", "revision" }` |
 | `pronounce` | `{}` | written → spoken, for every script (a script's own map wins) |
 | `allowSpoken` | `[]` | acronyms the narration check should allow |
 | `captions` | `"track"` | `"track"`: subtitles viewers turn on; `"burned"`: drawn into the picture (a script's `captions:` wins) |

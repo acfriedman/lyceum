@@ -14,7 +14,7 @@ sources:
   - tools/narrate.mjs (keys from the environment or the nearest .env; clips cached in .cache/)
   - tools/stills.mjs and tools/render.mjs (stills need only narration.json; render needs the clips in .cache/public)
   - explainers/ (a real in-repository project: .gitignore, what-is-lyceum's committed files total 132 KB)
-verified: "46ca2ff15204"
+verified: "5dd0ea28a264"
 captions: burned
 ---
 

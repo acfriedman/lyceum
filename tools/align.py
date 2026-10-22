@@ -1,7 +1,9 @@
 """Word timings for a narration clip whose voice doesn't report them.
 
-    python engine/tools/align.py <audio> <text-file> [<sentinel>]
+    python tools/align.py <audio> <text-file> <model-dir> [<sentinel>]
       →  JSON {"words": [{"w", "s", "e"}], "missing": [skipped script words], "tail": seconds | null}
+    python tools/align.py --fetch <model-repo> <revision>
+      →  the model's local directory, downloaded at that revision unless it's already cached
 
 Whisper transcribes the clip with word timestamps, and its transcript is matched back to the script
 character by character (letters and digits only), so every timing carries the script's spelling,
@@ -25,8 +27,8 @@ import re
 import sys
 
 import mlx_whisper
+from huggingface_hub import snapshot_download
 
-MODEL = "mlx-community/whisper-large-v3-turbo"
 # A script word counts as heard when at least this share of its characters matched.
 MATCHED_SHARE = 0.6
 
@@ -44,12 +46,23 @@ def chars_with_owner(words: list[str]) -> tuple[str, list[int]]:
     return "".join(text), owner
 
 
+def fetch(repo: str, revision: str) -> str:
+    """The model's directory at `revision`: from the local cache without asking the network, else downloaded."""
+    try:
+        return snapshot_download(repo, revision=revision, local_files_only=True)
+    except Exception:
+        return snapshot_download(repo, revision=revision)
+
+
 def main() -> None:
-    audio, text_path = sys.argv[1], sys.argv[2]
+    if sys.argv[1] == "--fetch":
+        print(fetch(sys.argv[2], sys.argv[3]))
+        return
+    audio, text_path, model_dir = sys.argv[1], sys.argv[2], sys.argv[3]
     spoken = open(text_path, encoding="utf-8").read().split()
-    sentinel = sys.argv[3].split() if len(sys.argv) > 3 else []
+    sentinel = sys.argv[4].split() if len(sys.argv) > 4 else []
     script = spoken + sentinel
-    result = mlx_whisper.transcribe(audio, path_or_hf_repo=MODEL, word_timestamps=True, language="en", condition_on_previous_text=False)
+    result = mlx_whisper.transcribe(audio, path_or_hf_repo=model_dir, word_timestamps=True, language="en", condition_on_previous_text=False)
     heard = [w for seg in result["segments"] for w in seg.get("words", [])]
     if not heard:
         raise SystemExit(f"{audio}: whisper heard no words")

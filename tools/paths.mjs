@@ -16,7 +16,7 @@
 //                           renders read narration from, and per-video review scratch (word timings,
 //                           contact sheets)
 //
-// Shared by every project on the machine (HOME): the Whisper venv and the slot locks that cap how
+// Shared by every project on the machine (HOME): the Whisper venvs and the slot locks that cap how
 // much memory-hungry work runs at once.
 
 import { existsSync, mkdirSync, readFileSync } from "node:fs";
@@ -55,6 +55,10 @@ export function findProject(from = process.env.LYCEUM_PROJECT ?? process.cwd()) 
  *   project      the project's guide, a markdown file the agent skill reads first: audience, ground
  *                truth, house rules, review and delivery (read from `brief` in older projects)
  *   voice        the default narration voice, as a script's `voice:` frontmatter would set it
+ *   voices       per provider, overrides of its default voice (e.g. a pinned model), however the
+ *                provider is chosen
+ *   providers    the only voice providers narration may be sent to (unset: any)
+ *   whisper      overrides of the pinned Whisper that aligns narration: { version, model, revision }
  *   pronounce    written form → spoken form, for every script (a script's own map wins)
  *   allowSpoken  words the acronym check lets through, for every script
  *   captions     "track" (a subtitle track viewers turn on) or "burned" (drawn into the picture), for
@@ -63,7 +67,7 @@ export function findProject(from = process.env.LYCEUM_PROJECT ?? process.cwd()) 
  */
 export function loadConfig(root) {
   const raw = JSON.parse(readFileSync(join(root, CONFIG_FILE), "utf8"));
-  const config = { videos: "videos", cache: ".cache", pronounce: {}, allowSpoken: [], captions: "track", theme: "dark", ...raw };
+  const config = { videos: "videos", cache: ".cache", voices: {}, whisper: {}, pronounce: {}, allowSpoken: [], captions: "track", theme: "dark", ...raw };
   config.project ??= raw.brief ?? "project.md";
   return config;
 }

@@ -2,21 +2,22 @@
 // Narrates a video's script: one audio clip per scene, with word timings, plus the timeline the
 // composition and the captions are laid out from.
 //
-//   lyceum narrate <video> [--provider openai|elevenlabs|say] [--only <scene-id>]
+//   lyceum narrate <video> [--provider openai|gemini|say] [--only <scene-id>]
 //
 // Each clip is cached under .cache/narration by a hash of everything that shapes the audio (provider,
 // voice, model, settings, spoken text), so re-running after a script edit only pays for the scenes
 // whose narration changed. Every clip is brought to the same loudness (LOUDNESS), so separate takes
-// don't jump in volume. Keys (OPENAI_KEY or OPENAI_API_KEY, ELEVEN_LABS_KEY or ELEVENLABS_API_KEY) come from the environment or from the
-// nearest .env walking up from the project.
+// don't jump in volume. Keys (OPENAI_KEY or OPENAI_API_KEY, GEMINI_API_KEY) come from the environment or
+// from the nearest .env walking up from the project.
 //
 // The default voice is OpenAI's gpt-4o-mini-tts "cedar". A script picks another with frontmatter
-// `voice: { provider, id, … }`; fields override that provider's defaults below. Only ElevenLabs
-// reports word timings itself; for the others, align.py (beside this file) derives them with local Whisper
-// (a Python venv shared by every project, under the Lyceum home directory, created on first use).
+// `voice: { provider, id, … }`; fields override that provider's defaults below. Word timings come from
+// align.py (beside this file), which derives them with local Whisper (a Python venv shared by every
+// project, under the Lyceum home directory, created on first use).
 //
-// The project's lyceum.config.json can set a default `voice`, plus `pronounce` and `allowSpoken`
-// entries that apply to every script; a script's own frontmatter wins.
+// The project's lyceum.config.json can set a default `voice`, pin each provider's voice under `voices`
+// (its model, say), list the only `providers` its narration may be sent to, and add `pronounce` and
+// `allowSpoken` entries that apply to every script; a script's own frontmatter wins.
 
 import { createHash } from "node:crypto";
 import { execFile, execFileSync, spawnSync } from "node:child_process";
@@ -27,7 +28,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { toSrt } from "./captions.mjs";
 import { parseScript, spokenText } from "./script.mjs";
-import { CACHE as CACHE_ROOT, CONFIG, HOME, ROOT, preparePublic, videoDir as resolveVideoDir, videoSlug } from "./paths.mjs";
+import { CACHE as CACHE_ROOT, CONFIG, CONFIG_FILE, HOME, ROOT, preparePublic, videoDir as resolveVideoDir, videoSlug } from "./paths.mjs";
 
 const CACHE = join(CACHE_ROOT, "narration");
 
@@ -40,6 +41,11 @@ const DEFAULTS = {
   tail: 1.1,
 };
 
+// Hosted voices are voiced paragraph by paragraph, with a trimmed sentinel, each checked against the
+// script and loudness-normalized (see byParagraph). Bump the version when that processing changes: the
+// raw speech is cached apart (see cachedSpeech), so it re-processes clips without re-billing them.
+const PARAGRAPHS = "paragraph+sentinel+loudness@5";
+
 // Each provider's default voice. The object's key order is part of the cache hash: keep it stable.
 const VOICES = {
   openai: {
@@ -50,28 +56,64 @@ const VOICES = {
       "Voice: a calm, curious explainer narrator in the style of 3Blue1Brown. Tone: warm, intelligent, " +
       "unhurried. Pacing: measured, with brief natural pauses at commas and full stops; slightly slower " +
       "on key ideas. Never rushed, never theatrical.",
-    // Voiced paragraph by paragraph, with a trimmed sentinel, each checked against the script and
-    // loudness-normalized (see synthesizeOpenAI). Bump the version when that processing changes: the
-    // raw speech is cached apart (see openAISpeech), so it re-processes clips without re-billing them.
-    chunk: "paragraph+sentinel+loudness@5",
+    chunk: PARAGRAPHS,
   },
-  elevenlabs: {
-    provider: "elevenlabs",
-    id: "TX3LPaxmHKxFdv7VOQHJ", // Liam
-    model: "eleven_multilingual_v2",
-    settings: { stability: 0.5, similarity_boost: 0.75, style: 0, use_speaker_boost: true },
-    seed: 7,
+  gemini: {
+    provider: "gemini",
+    id: "Charon",
+    model: "gemini-3.8-flash-tts",
+    // Sent as Gemini's style, apart from the text, which it reads verbatim. Kept short: Google warns
+    // that long style directions make the voice drift.
+    instructions: "A calm, curious explainer narrator: warm, intelligent and unhurried, never rushed or theatrical.",
+    chunk: PARAGRAPHS,
   },
   say: { provider: "say", id: "Samantha", rate: 180 },
 };
 
-/** The voice a run uses: `--provider` wins, then the script's `voice:`, then OpenAI. */
+/**
+ * The voice a run uses: `--provider` wins, then the script's `voice:`, then OpenAI. Its defaults are
+ * that provider's VOICES entry with the project's `voices` entry for it on top, whichever way the
+ * provider was chosen. Overrides keep VOICES' key order, so a project without them keeps its cache.
+ */
 function resolveVoice(cliProvider, scripted = {}) {
+  const expected = `expected ${Object.keys(VOICES).join(", ")}`;
+  for (const name of Object.keys(CONFIG.voices)) {
+    if (!VOICES[name]) throw new Error(`${CONFIG_FILE}: unknown provider "${name}" under voices (${expected})`);
+  }
+  if (CONFIG.providers !== undefined) {
+    if (!Array.isArray(CONFIG.providers)) throw new Error(`${CONFIG_FILE}: providers must be a list, e.g. ["openai", "say"]`);
+    for (const name of CONFIG.providers) {
+      if (!VOICES[name]) throw new Error(`${CONFIG_FILE}: unknown provider "${name}" under providers (${expected})`);
+    }
+  }
   const provider = cliProvider ?? scripted.provider ?? "openai";
-  const base = VOICES[provider];
-  if (!base) throw new Error(`unknown provider "${provider}" (expected ${Object.keys(VOICES).join(", ")})`);
+  if (!VOICES[provider]) throw new Error(`unknown provider "${provider}" (${expected})`);
+  const base = { ...VOICES[provider], ...CONFIG.voices[provider], provider };
   // The script's overrides describe its own provider's voice; they don't carry over to another one.
   return (scripted.provider ?? "openai") === provider ? { ...base, ...scripted, provider } : base;
+}
+
+/** Where a run's provider was chosen, for messages: the flag, the script, the project, or the default. */
+function providerChoice(cliProvider, scriptVoice, video) {
+  if (cliProvider) return "--provider";
+  if (scriptVoice) return scriptVoice.provider ? `voice: in ${video}/script.md` : "Lyceum's default (a script voice: without a provider is OpenAI's)";
+  if (CONFIG.voice?.provider) return `voice in ${CONFIG_FILE}`;
+  return "Lyceum's default";
+}
+
+/**
+ * A project's `providers` lists where its narration may be sent: nothing is voiced by any other
+ * provider. Clips already cached never leave the machine, so they're reused whatever their provider;
+ * only `toVoice`, the scenes that would be voiced now, are refused.
+ */
+function checkProviderAllowed(provider, chosenBy, toVoice) {
+  const allowed = CONFIG.providers;
+  if (allowed === undefined || allowed.includes(provider) || toVoice.length === 0) return;
+  throw new Error(
+    `provider "${provider}" (chosen by ${chosenBy}) isn't allowed in this project: ${CONFIG_FILE} allows ` +
+      `${allowed.length ? allowed.join(", ") : "none"}, and ${toVoice.join(", ")} would be sent to it.\n` +
+      `Narrate with an allowed provider, or add "${provider}" to providers in ${CONFIG_FILE}.`,
+  );
 }
 
 function parseArgs(argv) {
@@ -82,7 +124,7 @@ function parseArgs(argv) {
     else args.dir = argv[i];
   }
   if (!args.dir) {
-    console.error("usage: lyceum narrate <video> [--provider openai|elevenlabs|say] [--only <scene-id>]");
+    console.error("usage: lyceum narrate <video> [--provider openai|gemini|say] [--only <scene-id>]");
     process.exit(2);
   }
   return args;
@@ -102,35 +144,41 @@ function secret(...names) {
   throw new Error(`${names.join(" / ")} is not set, and no .env at or above ${ROOT} defines it`);
 }
 
-/** Characters with start/end seconds → words with start/end seconds. */
-function wordsFromAlignment({ characters, character_start_times_seconds: starts, character_end_times_seconds: ends }) {
-  const words = [];
-  let word = null;
-  characters.forEach((ch, i) => {
-    if (/\s/.test(ch)) {
-      word = null;
-      return;
-    }
-    if (!word) {
-      word = { w: "", s: starts[i], e: ends[i] };
-      words.push(word);
-    }
-    word.w += ch;
-    word.e = ends[i];
-  });
-  return words;
+// The Whisper that aligns narration, pinned like the renderer's Chrome: the mlx-whisper release and the
+// model's revision. A project can pin others under `whisper` in lyceum.config.json. Each release gets
+// its own venv and each revision its own download, so changing a pin never reuses the old one. Clips
+// already cached keep the word timings they were accepted with.
+const WHISPER = {
+  version: "0.4.3",
+  model: "mlx-community/whisper-large-v3-turbo",
+  revision: "a4aaeec0636e6fef84abdcbe3544cb2bf7e9f6fb",
+  ...CONFIG.whisper,
+};
+const ALIGN_PY = join(dirname(fileURLToPath(import.meta.url)), "align.py");
+
+/** The Python that runs align.py: a venv with the pinned mlx-whisper, created with uv on first use. */
+function alignerPython() {
+  const venv = join(HOME, `whisper-${WHISPER.version}`);
+  const installed = join(venv, ".installed"); // written last, so an interrupted install is redone
+  if (!existsSync(installed)) {
+    console.log(`  creating ${venv} (mlx-whisper ${WHISPER.version}) for word alignment…`);
+    execFileSync("uv", ["venv", "-q", "--clear", "--python", "3.12", venv], { stdio: "inherit" });
+    execFileSync("uv", ["pip", "install", "-q", `mlx-whisper==${WHISPER.version}`], { stdio: "inherit", env: { ...process.env, VIRTUAL_ENV: venv } });
+    writeFileSync(installed, `mlx-whisper==${WHISPER.version}\n`);
+  }
+  return join(venv, "bin", "python");
 }
 
-/** The Python that runs align.py: a venv with mlx-whisper, created with uv on first use. */
-function alignerPython() {
-  const venv = join(HOME, "py");
-  const python = join(venv, "bin", "python");
-  if (!existsSync(python)) {
-    console.log(`  creating ${venv} (mlx-whisper) for word alignment…`);
-    execFileSync("uv", ["venv", "-q", "--python", "3.12", venv], { stdio: "inherit" });
-    execFileSync("uv", ["pip", "install", "-q", "mlx-whisper"], { stdio: "inherit", env: { ...process.env, VIRTUAL_ENV: venv } });
+let modelDir;
+/** The pinned Whisper model's local directory, downloaded on first use (about 1.6 GB, once per revision). */
+function whisperModel() {
+  const python = alignerPython();
+  try {
+    modelDir ??= String(execFileSync(python, [ALIGN_PY, "--fetch", WHISPER.model, WHISPER.revision], { stdio: ["ignore", "pipe", "inherit"] })).trim();
+  } catch {
+    throw new Error(`couldn't fetch the Whisper model ${WHISPER.model} at revision ${WHISPER.revision} (see above)`);
   }
-  return python;
+  return modelDir;
 }
 
 // Whisper loads its model per process, so alignments take machine-wide slots (see slots.mjs): the cap
@@ -139,11 +187,11 @@ const whisperSlot = (task) => withSlot("whisper", task);
 
 /** Word timings for a clip, from local Whisper matched back to the script's words, plus the script
  *  words Whisper never heard (`missing`). Paths are unique per clip, so calls may run concurrently. */
-async function align(text, mp3Path, sentinel) {
-  const textPath = mp3Path.replace(/\.mp3$/, ".txt");
+async function align(text, audioPath, sentinel) {
+  const textPath = audioPath.replace(/\.\w+$/, ".txt");
   writeFileSync(textPath, text);
   const { stdout } = await whisperSlot(() =>
-    promisify(execFile)(alignerPython(), [join(dirname(fileURLToPath(import.meta.url)), "align.py"), mp3Path, textPath, ...(sentinel ? [sentinel] : [])], {
+    promisify(execFile)(alignerPython(), [ALIGN_PY, audioPath, textPath, whisperModel(), ...(sentinel ? [sentinel] : [])], {
       maxBuffer: 16 * 1024 * 1024,
     }),
   );
@@ -153,21 +201,6 @@ async function align(text, mp3Path, sentinel) {
 function probeDuration(file) {
   const out = execFileSync("ffprobe", ["-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", file]);
   return Number(String(out).trim());
-}
-
-async function synthesizeElevenLabs(text, voice, mp3Path) {
-  const response = await fetch(
-    `https://api.elevenlabs.io/v1/text-to-speech/${voice.id}/with-timestamps?output_format=mp3_44100_128`,
-    {
-      method: "POST",
-      headers: { "xi-api-key": secret("ELEVEN_LABS_KEY", "ELEVENLABS_API_KEY"), "Content-Type": "application/json" },
-      body: JSON.stringify({ text, model_id: voice.model, voice_settings: voice.settings, seed: voice.seed }),
-    },
-  );
-  if (!response.ok) throw new Error(`ElevenLabs ${response.status}: ${await response.text()}`);
-  const body = await response.json();
-  writeFileSync(mp3Path, Buffer.from(body.audio_base64, "base64"));
-  return wordsFromAlignment(body.alignment);
 }
 
 // The level every clip is brought to: integrated loudness in LUFS (EBU R128's reference, about where
@@ -204,43 +237,77 @@ function normalizeLoudness(inPath, outPath) {
 const PARAGRAPH_GAP = 0.45;
 const ATTEMPTS = 3;
 // gpt-4o-mini-tts often drops an input's last sentence (measured: ~70% of the time for a short
-// closing one). A throwaway sentence after it absorbs the drop; the audio is cut before it.
+// closing one). A throwaway sentence after it absorbs the drop; the audio is cut before it. Gemini is
+// voiced the same way, so a drop there is caught too.
 const SENTINEL = "Okay.";
 
 /**
- * One billed OpenAI speech request, cached under .cache/tts-raw by exactly what was sent (and the
- * attempt number, so a retry is a fresh take). The audio is kept *before* any trimming or
- * alignment: changing how clips are processed never pays for the same speech twice.
+ * One billed speech request, cached under .cache/tts-raw by exactly what was sent (and the attempt
+ * number, so a retry is a fresh take). The audio is kept *before* any trimming or alignment: changing
+ * how clips are processed never pays for the same speech twice.
  */
-async function openAISpeech(voice, input, attempt) {
-  const request = { model: voice.model, voice: voice.id, input, instructions: voice.instructions, response_format: "mp3" };
+async function cachedSpeech(request, attempt, extension, fetchAudio) {
   const key = createHash("sha256").update(JSON.stringify({ request, attempt })).digest("hex").slice(0, 16);
-  const rawPath = join(CACHE_ROOT, "tts-raw", `${key}.mp3`);
+  const rawPath = join(CACHE_ROOT, "tts-raw", `${key}.${extension}`);
   if (existsSync(rawPath)) return rawPath;
   mkdirSync(dirname(rawPath), { recursive: true });
-  const response = await fetch("https://api.openai.com/v1/audio/speech", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${secret("OPENAI_KEY", "OPENAI_API_KEY")}`, "Content-Type": "application/json" },
-    body: JSON.stringify(request),
-  });
-  if (!response.ok) throw new Error(`OpenAI ${response.status}: ${await response.text()}`);
-  writeFileSync(rawPath, Buffer.from(await response.arrayBuffer()));
+  writeFileSync(rawPath, await fetchAudio(request));
   return rawPath;
 }
 
+function openAISpeech(voice, input, attempt) {
+  const request = { model: voice.model, voice: voice.id, input, instructions: voice.instructions, response_format: "mp3" };
+  return cachedSpeech(request, attempt, "mp3", async () => {
+    const response = await fetch("https://api.openai.com/v1/audio/speech", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${secret("OPENAI_KEY", "OPENAI_API_KEY")}`, "Content-Type": "application/json" },
+      body: JSON.stringify(request),
+    });
+    if (!response.ok) throw new Error(`OpenAI ${response.status}: ${await response.text()}`);
+    return Buffer.from(await response.arrayBuffer());
+  });
+}
+
+/** Gemini reads `text` verbatim and takes the delivery as a separate style; it answers with a WAV. */
+function geminiSpeech(voice, input, attempt) {
+  const annotations = voice.instructions ? [{ type: "speech_metadata", style: voice.instructions }] : [];
+  const request = {
+    model: voice.model,
+    input: [{ type: "user_input", content: [{ type: "text", text: input, annotations }] }],
+    response_format: { type: "audio" },
+    generation_config: { speech_config: [{ voice: voice.id }] },
+  };
+  return cachedSpeech(request, attempt, "wav", async () => {
+    const response = await fetch("https://generativelanguage.googleapis.com/v1beta/interactions", {
+      method: "POST",
+      headers: { "x-goog-api-key": secret("GEMINI_API_KEY"), "Content-Type": "application/json" },
+      body: JSON.stringify(request),
+    });
+    if (!response.ok) throw new Error(`Gemini ${response.status}: ${await response.text()}`);
+    const { steps = [] } = await response.json();
+    const audio = steps
+      .filter((step) => step.type === "model_output")
+      .flatMap((step) => step.content ?? [])
+      .filter((part) => part.type === "audio")
+      .at(-1);
+    if (!audio?.data) throw new Error("Gemini returned no audio");
+    return Buffer.from(audio.data, "base64");
+  });
+}
+
 /**
- * OpenAI voices a scene one paragraph at a time (all paragraphs concurrently), each with SENTINEL
- * appended. Each paragraph is aligned against its real text, cut between its last word and the
- * sentinel, checked for skipped words (and retried), and brought to LOUDNESS (each is a separate take,
- * so they differ), then the paragraphs are joined with a short pause.
+ * A hosted voice reads a scene one paragraph at a time (all paragraphs concurrently), each with
+ * SENTINEL appended. Each paragraph is aligned against its real text, cut between its last word and
+ * the sentinel, checked for skipped words (and retried), and brought to LOUDNESS (each is a separate
+ * take, so they differ), then the paragraphs are joined with a short pause.
  */
-async function synthesizeOpenAI(text, voice, mp3Path, label) {
+const byParagraph = (speech) => async (text, voice, mp3Path, label) => {
   const paragraphs = text.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean);
   const parts = await Promise.all(
     paragraphs.map(async (paragraph, index) => {
       const partPath = mp3Path.replace(/\.mp3$/, `.p${index}.mp3`);
       for (let attempt = 1; ; attempt++) {
-        const rawPath = await openAISpeech(voice, `${paragraph} ${SENTINEL}`, attempt);
+        const rawPath = await speech(voice, `${paragraph} ${SENTINEL}`, attempt);
         const aligned = await align(paragraph, rawPath, SENTINEL);
         if (aligned.missing.length === 0) {
           cutAfterLastWord(rawPath, partPath, aligned);
@@ -254,7 +321,7 @@ async function synthesizeOpenAI(text, voice, mp3Path, label) {
     }),
   );
   return joinParts(parts, mp3Path);
-}
+};
 
 /**
  * Trims a clip just after its last scripted word (halfway to the sentinel, when it was spoken) and
@@ -303,7 +370,7 @@ async function synthesizeSay(text, voice, mp3Path) {
   return (await align(text, mp3Path)).words;
 }
 
-const SYNTHESIZE = { openai: synthesizeOpenAI, elevenlabs: synthesizeElevenLabs, say: synthesizeSay };
+const SYNTHESIZE = { openai: byParagraph(openAISpeech), gemini: byParagraph(geminiSpeech), say: synthesizeSay };
 
 // Narration says things in full: no acronyms, no shortenings. Listeners can't see the spelling, and
 // "op" or "GCD" makes them decode instead of follow. Checked before anything is billed.
@@ -350,14 +417,17 @@ async function main() {
     ? JSON.parse(readFileSync(join(videoDir, "narration.json"), "utf8"))
     : null;
 
-  // Lint every scene that would be newly voiced (cached scenes were already accepted).
+  // Lint every scene that would be newly voiced (cached scenes were already accepted), and check
+  // that its provider is allowed, before anything is sent.
   const allowed = new Set(meta.allow_spoken ?? []);
   const problems = [];
+  const toVoice = [];
   for (const scene of scenes) {
     if (args.only && args.only !== scene.id) continue;
     const text = spokenText(scene.narration, meta.pronounce);
     const hash = createHash("sha256").update(JSON.stringify({ provider, voice, text })).digest("hex").slice(0, 16);
-    if (existsSync(join(CACHE, `${hash}.mp3`))) continue;
+    if (existsSync(join(CACHE, `${hash}.mp3`)) && existsSync(join(CACHE, `${hash}.json`))) continue;
+    toVoice.push(scene.id);
     const found = shortenings(text, allowed);
     if (found.length) problems.push(`  ${scene.id}: ${found.join(", ")}`);
   }
@@ -367,9 +437,10 @@ async function main() {
         `Rewrite them in script.md, map them under pronounce:, or list a deliberate exception under allow_spoken:.`,
     );
   }
+  checkProviderAllowed(provider, providerChoice(args.provider, scripted.voice, video), toVoice);
 
   // Every scene that needs voicing is voiced at once; each scene's paragraphs run concurrently too.
-  if (provider !== "elevenlabs") alignerPython(); // create the venv once, before any parallel use
+  whisperModel(); // create the venv and fetch the model once, before any parallel use
   const out = await Promise.all(
     scenes.map(async (scene) => {
       const text = spokenText(scene.narration, meta.pronounce);

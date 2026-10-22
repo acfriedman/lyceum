@@ -16,8 +16,8 @@
 // project, under the Lyceum home directory, created on first use).
 //
 // The project's lyceum.config.json can set a default `voice`, pin each provider's voice under `voices`
-// (its model, say), and add `pronounce` and `allowSpoken` entries that apply to every script; a
-// script's own frontmatter wins.
+// (its model, say), list the only `providers` its narration may be sent to, and add `pronounce` and
+// `allowSpoken` entries that apply to every script; a script's own frontmatter wins.
 
 import { createHash } from "node:crypto";
 import { execFile, execFileSync, spawnSync } from "node:child_process";
@@ -80,11 +80,40 @@ function resolveVoice(cliProvider, scripted = {}) {
   for (const name of Object.keys(CONFIG.voices)) {
     if (!VOICES[name]) throw new Error(`${CONFIG_FILE}: unknown provider "${name}" under voices (${expected})`);
   }
+  if (CONFIG.providers !== undefined) {
+    if (!Array.isArray(CONFIG.providers)) throw new Error(`${CONFIG_FILE}: providers must be a list, e.g. ["openai", "say"]`);
+    for (const name of CONFIG.providers) {
+      if (!VOICES[name]) throw new Error(`${CONFIG_FILE}: unknown provider "${name}" under providers (${expected})`);
+    }
+  }
   const provider = cliProvider ?? scripted.provider ?? "openai";
   if (!VOICES[provider]) throw new Error(`unknown provider "${provider}" (${expected})`);
   const base = { ...VOICES[provider], ...CONFIG.voices[provider], provider };
   // The script's overrides describe its own provider's voice; they don't carry over to another one.
   return (scripted.provider ?? "openai") === provider ? { ...base, ...scripted, provider } : base;
+}
+
+/** Where a run's provider was chosen, for messages: the flag, the script, the project, or the default. */
+function providerChoice(cliProvider, scriptVoice, video) {
+  if (cliProvider) return "--provider";
+  if (scriptVoice) return scriptVoice.provider ? `voice: in ${video}/script.md` : "Lyceum's default (a script voice: without a provider is OpenAI's)";
+  if (CONFIG.voice?.provider) return `voice in ${CONFIG_FILE}`;
+  return "Lyceum's default";
+}
+
+/**
+ * A project's `providers` lists where its narration may be sent: nothing is voiced by any other
+ * provider. Clips already cached never leave the machine, so they're reused whatever their provider;
+ * only `toVoice`, the scenes that would be voiced now, are refused.
+ */
+function checkProviderAllowed(provider, chosenBy, toVoice) {
+  const allowed = CONFIG.providers;
+  if (allowed === undefined || allowed.includes(provider) || toVoice.length === 0) return;
+  throw new Error(
+    `provider "${provider}" (chosen by ${chosenBy}) isn't allowed in this project: ${CONFIG_FILE} allows ` +
+      `${allowed.length ? allowed.join(", ") : "none"}, and ${toVoice.join(", ")} would be sent to it.\n` +
+      `Narrate with an allowed provider, or add "${provider}" to providers in ${CONFIG_FILE}.`,
+  );
 }
 
 function parseArgs(argv) {
@@ -388,14 +417,17 @@ async function main() {
     ? JSON.parse(readFileSync(join(videoDir, "narration.json"), "utf8"))
     : null;
 
-  // Lint every scene that would be newly voiced (cached scenes were already accepted).
+  // Lint every scene that would be newly voiced (cached scenes were already accepted), and check
+  // that its provider is allowed, before anything is sent.
   const allowed = new Set(meta.allow_spoken ?? []);
   const problems = [];
+  const toVoice = [];
   for (const scene of scenes) {
     if (args.only && args.only !== scene.id) continue;
     const text = spokenText(scene.narration, meta.pronounce);
     const hash = createHash("sha256").update(JSON.stringify({ provider, voice, text })).digest("hex").slice(0, 16);
-    if (existsSync(join(CACHE, `${hash}.mp3`))) continue;
+    if (existsSync(join(CACHE, `${hash}.mp3`)) && existsSync(join(CACHE, `${hash}.json`))) continue;
+    toVoice.push(scene.id);
     const found = shortenings(text, allowed);
     if (found.length) problems.push(`  ${scene.id}: ${found.join(", ")}`);
   }
@@ -405,6 +437,7 @@ async function main() {
         `Rewrite them in script.md, map them under pronounce:, or list a deliberate exception under allow_spoken:.`,
     );
   }
+  checkProviderAllowed(provider, providerChoice(args.provider, scripted.voice, video), toVoice);
 
   // Every scene that needs voicing is voiced at once; each scene's paragraphs run concurrently too.
   whisperModel(); // create the venv and fetch the model once, before any parallel use

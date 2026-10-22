@@ -84,6 +84,7 @@ lyceum/
 | `project` | `"project.md"` | the project guide the agent reads first (older projects: `brief`) |
 | `voice` | OpenAI `cedar` | default voice, e.g. `{ "provider": "gemini" }` or `{ "id": "marin" }` |
 | `voices` | `{}` | per provider, overrides of its voice wherever it's used, e.g. a pinned model: `{ "openai": { "model": "gpt-4o-mini-tts-2025-12-15" } }` |
+| `providers` | any | the only voice providers narration may be sent to, e.g. `["openai", "say"]`; clips already cached are reused whatever their provider |
 | `whisper` | mlx-whisper 0.4.3, `whisper-large-v3-turbo` at a fixed revision | the Whisper that times the words: `{ "version", "model", "revision" }` |
 | `pronounce` | `{}` | written → spoken, for every script (a script's own map wins) |
 | `allowSpoken` | `[]` | acronyms the narration check should allow |

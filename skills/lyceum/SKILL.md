@@ -125,6 +125,9 @@ This writes `narration.json` (durations, word timings, timeline) and `captions.s
 - **Voice:** a script can pin a voice in frontmatter: `voice: { provider: gemini }`, or
   `{ id: marin, instructions: … }` for another OpenAI voice. A voice's `instructions` direct its delivery
   and are never spoken: Gemini takes them as a separate style and reads the narration verbatim.
+- **Allowed providers:** a project may list the only providers its narration can go to, under `providers`
+  in `lyceum.config.json`. If narrate refuses a provider, use an allowed one; adding a provider to the list
+  is the user's decision, never yours.
 - **Pins:** `voices` in `lyceum.config.json` overrides a provider's voice wherever it's used, e.g.
   `{ "openai": { "model": "gpt-4o-mini-tts-2025-12-15" } }`. Changing it re-voices every scene, so only
   change it when the user asks.

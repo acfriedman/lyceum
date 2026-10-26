@@ -2,7 +2,7 @@ import React from "react";
 import { C, FONT, Line, Pill, Svg, Text, prog, useScene } from "#kit";
 import { Command, FileTree, Panel, ROLE, TREE, panelLineY, treeRow, treeRowX, treeRowY, useAppear } from "./shared";
 
-// The right shape: `npx lyceum init explainers` gives the videos a small project of their own, with
+// The right shape: `npx lyceum init lyceum` gives the videos a small project of their own, with
 // its own dependencies, a guide for the agent and a folder for the videos. The app never sees it, and
 // in a JavaScript monorepo it stays outside the workspace, the root type check, lint and CI.
 
@@ -14,9 +14,9 @@ const nameEnd = (depth: number, name: string) => rowX(depth) + name.length * SIZ
 
 /** init's files, in the order it prints them. */
 const CREATED = ["lyceum.config.json", "project.md", "videos/index.ts", "package.json", "tsconfig.json", ".gitignore"] as const;
-const FIRST = 4; // the explainers/ row
+const FIRST = 4; // the lyceum/ row
 
-/** The dashed boundary around explainers/ and its six children. */
+/** The dashed boundary around lyceum/ and its six children. */
 const BOUND = {
   left: 228,
   right: rowX(2) + "lyceum.config.json".length * SIZE * 0.6 + 50,
@@ -114,7 +114,7 @@ export const OwnProject: React.FC = () => {
     { name: "src/", depth: 1, color: ROLE.app },
     { name: "tests/", depth: 1, color: ROLE.app },
     { name: "package.json", depth: 1 },
-    { name: "explainers/", depth: 1, color: ROLE.lyceum, at: creates },
+    { name: "lyceum/", depth: 1, color: ROLE.lyceum, at: creates },
     ...CREATED.map((name, i) => ({
       name,
       depth: 2,
@@ -136,7 +136,7 @@ export const OwnProject: React.FC = () => {
 
   return (
     <>
-      <Command x={TREE.x} y={200} text="npx lyceum init explainers" at={give} out={monorepo} />
+      <Command x={TREE.x} y={200} text="npx lyceum init lyceum" at={give} out={monorepo} />
       <FileTree entries={tree} size={SIZE} at={0} />
 
       {/* init's real output, line by line as the rows arrive. */}
@@ -169,7 +169,7 @@ export const OwnProject: React.FC = () => {
         x={PANEL_X}
         y={rowY(pkgRow) - (panelLineY(2, 0, 28))}
         w={760}
-        title="explainers/package.json"
+        title="lyceum/package.json"
         size={28}
         border={ROLE.lyceum}
         at={deps}

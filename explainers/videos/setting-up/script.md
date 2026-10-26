@@ -1,7 +1,7 @@
 ---
 title: "Where your videos live"
 status: approved by Andrew 2026-10-08, voice cedar
-updated: 2026-10-08
+updated: 2026-10-11
 # Written form → spoken form, applied only to the text sent to the voice.
 pronounce: {}
 sources:
@@ -14,7 +14,7 @@ sources:
   - tools/narrate.mjs (keys from the environment or the nearest .env; clips cached in .cache/)
   - tools/stills.mjs and tools/render.mjs (stills need only narration.json; render needs the clips in .cache/public)
   - explainers/ (a real in-repository project: .gitignore, what-is-lyceum's committed files total 132 KB)
-verified: "787fedfc1d0e"
+verified: "5dd0ea28a264"
 captions: burned
 ---
 
@@ -64,17 +64,17 @@ Go or Swift, there's no dependencies file to add it to at all.
 ## 02 · own-project — A small project of its own
 
 > Visual: The `your-app/` tree returns. At the top, a terminal line types on:
-> `npx lyceum init explainers`. On "creates a folder", `explainers/` grows beside `src/`, and its
+> `npx lyceum init lyceum`. On "creates a folder", `lyceum/` grows beside `src/`, and its
 > children appear one by one, matching init's real output: `lyceum.config.json`, `project.md`,
 > `videos/index.ts`, `package.json`, `tsconfig.json`, `.gitignore`. On "its own dependencies",
-> `explainers/package.json` highlights with `"lyceum": "github:acfriedman/lyceum"`. On "a guide for the
+> `lyceum/package.json` highlights with `"lyceum": "github:acfriedman/lyceum"`. On "a guide for the
 > agent", `project.md` highlights; on "a folder for videos", `videos/`. On "never sees", a dashed
-> boundary draws around `explainers/`. On "monorepo", three labels approach the boundary from outside,
+> boundary draws around `lyceum/`. On "monorepo", three labels approach the boundary from outside,
 > "workspaces", "root type check", "lint and continuous integration", and each stops short of it with a
 > small "excluded" mark.
 
 Instead, give the videos a small project of their own. Lyceum's setup command creates a folder,
-usually called explainers, with its own dependencies, a guide for the agent, and a folder for the
+usually called lyceum, with its own dependencies, a guide for the agent, and a folder for the
 videos. Your app never sees any of it.
 
 In a JavaScript monorepo, keep that folder out of the workspace, and out of the root type check,
@@ -82,15 +82,15 @@ linting and continuous integration. It installs and checks itself.
 
 ## 03 · beside-the-code — In the repository it explains
 
-> Visual: The tree: `your-app/` with `src/` and `explainers/` side by side. On "ground truth",
+> Visual: The tree: `your-app/` with `src/` and `lyceum/` side by side. On "ground truth",
 > `project.md` opens to its "Ground truth" heading with the line "the code in `..`" and an arrow from
-> `explainers/` to `src/`. On "same commit", a commit chip, `a1b2c3d`, spans both folders. On "a diff",
+> `lyceum/` to `src/`. On "same commit", a commit chip, `a1b2c3d`, spans both folders. On "a diff",
 > a script's frontmatter shows `sources: src/cache/`; on "since the video", its `verified: a1b2c3d`
 > line highlights and the video's card gains a "may be stale" tag. Below it the command
 > `npx lyceum stale cache` reports the video stale and lists two commits (simplified from its real
 > output). On "it's light", a bar: "what-is-lyceum, committed: 132 KB" (script, scenes, timings), beside
 > greyed-out `.cache/` and `dist/` labelled "gitignored". On "noise", a pull request card, "Fix cache
-> eviction", lists its changed files; one of them is a scene file under `explainers/`, dimmed.
+> eviction", lists its changed files; one of them is a scene file under `lyceum/`, dimmed.
 
 If the videos explain one codebase to the people who work on it, put that folder in the same
 repository, and treat it like documentation.
@@ -122,12 +122,12 @@ out side by side, in the same layout. Write that down in the guide.
 
 > Visual: A laptop outline, with two numbered steps on its screen. Step 1, "the skill", types the
 > command `npx lyceum skill link`, and its real output appears: `linked ~/.claude/skills/lyceum →
-> …/explainers/node_modules/lyceum/skills/lyceum`, drawn as an arrow from the user's skill folder into
-> one project. On "two projects", a second project, `other-app/explainers` (a newer Lyceum), appears;
+> …/lyceum/node_modules/lyceum/skills/lyceum`, drawn as an arrow from the user's skill folder into
+> one project. On "two projects", a second project, `other-app/lyceum` (a newer Lyceum), appears;
 > its link attempt prints `skipped … already exists`, and its arrow can't reach the skill folder. On
 > "for one repository", the command changes to `npx lyceum skill link --project ..` and the arrow now
 > starts at `your-app/.claude/skills/lyceum`, which gains a `.gitignore` tag on "out of version
-> control". Step 2, "a voice key", shows `explainers/.env` with `OPENAI_KEY=…` masked, tagged
+> control". Step 2, "a voice key", shows `lyceum/.env` with `OPENAI_KEY=…` masked, tagged
 > "ignored" on "ignores it".
 
 Each author sets up their own machine. First, give the coding agent the skill. By default, it's linked
@@ -166,7 +166,7 @@ requests.
 > documentation site" and "the pull request it explains". On "the pull request", that one enlarges: a
 > pull request description with a video player embedded. On "write the answer", `project.md` opens to
 > its "Delivery" heading. On "So:", everything clears and the opening `your-app/` tree returns, now with
-> `explainers/` beside `src/`, and four items tick on beside it in turn: "its own project" on "own small
+> `lyceum/` beside `src/`, and four items tick on beside it in turn: "its own project" on "own small
 > project", "beside the code" on "beside the code", "skill linked per repository" on "per repository",
 > "one owner for the voice" on "owns the voice".
 

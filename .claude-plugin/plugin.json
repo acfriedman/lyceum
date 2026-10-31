@@ -1,7 +1,7 @@
 {
   "name": "lyceum",
   "description": "Explainer videos made of animated, narrated diagrams: the Lyceum skill (write, narrate, animate, render).",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "author": {
     "name": "Andrew Friedman"
   },

@@ -70,9 +70,12 @@ explainers/         a Lyceum project of videos about Lyceum, made with this chec
 ## Releases
 
 Projects depend on a release, not on main: `lyceum init` writes `github:acfriedman/lyceum#semver:^X.Y.Z`
-(`tools/version.mjs`), and npm resolves the range against the repository's tags. Once a day at most, a
-`lyceum` command checks the tags and prints a line if a newer release exists; the skill tells the agent
-to pass it on. The check is skipped in CI, with `LYCEUM_NO_UPDATE_CHECK` set, and in a git checkout.
+(`tools/version.mjs`), and npm resolves the range against the repository's tags. Every six hours at
+most, a `lyceum` command checks the tags and prints a line if a newer release exists; the skill tells the
+agent to pass it on. `lyceum version --hook` checks every time and prints only when one exists, with what
+to do about it: `lyceum init` runs it from a Claude Code session-start hook in the repository's
+`.claude/settings.json`, so a fresh chat hears about a release before any command runs. The check is
+skipped in CI, with `LYCEUM_NO_UPDATE_CHECK` set, and in a git checkout.
 
 - **What the number means.** Major: a change that breaks existing scenes or projects (the `#kit` API,
   `script.md`'s format, `lyceum.config.json`'s keys). Minor: new features. Patch: fixes. While Lyceum is

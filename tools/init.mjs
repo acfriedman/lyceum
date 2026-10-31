@@ -5,7 +5,7 @@
 //   lyceum init [<dir>]
 
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { basename, dirname, join, resolve } from "node:path";
+import { basename, dirname, join, relative, resolve } from "node:path";
 import { dependency } from "./version.mjs";
 
 const dir = resolve(process.argv[2] ?? ".");
@@ -117,6 +117,23 @@ const missing = ignore.filter((line) => !existing.includes(line));
 if (missing.length) {
   appendFileSync(ignorePath, (existing.length && existing.at(-1) !== "" ? "\n" : "") + missing.join("\n") + "\n");
   (existing.length ? updated : created).push(".gitignore");
+}
+
+// .claude/settings.json: a session-start hook, so Claude Code hears about a newer Lyceum release when a
+// chat begins, not only when a command runs. It goes in the repository holding the project, where the
+// agent is opened, and runs the project's own install; until that exists it prints nothing.
+let root = dir;
+while (!existsSync(join(root, ".git")) && dirname(root) !== root) root = dirname(root);
+if (!existsSync(join(root, ".git"))) root = dir;
+const settingsPath = join(root, ".claude", "settings.json");
+const settings = existsSync(settingsPath) ? JSON.parse(readFileSync(settingsPath, "utf8")) : {};
+const sessionStart = (settings.hooks ??= {}).SessionStart ??= [];
+if (!sessionStart.some((entry) => entry.hooks?.some((h) => /lyceum"? version --hook/.test(h.command ?? "")))) {
+  const bin = join("$CLAUDE_PROJECT_DIR", relative(root, dir), "node_modules", ".bin", "lyceum");
+  sessionStart.push({ matcher: "startup", hooks: [{ type: "command", command: `"${bin}" version --hook 2>/dev/null || true`, timeout: 10 }] });
+  (existsSync(settingsPath) ? updated : created).push(relative(dir, settingsPath));
+  mkdirSync(dirname(settingsPath), { recursive: true });
+  writeFileSync(settingsPath, JSON.stringify(settings, null, 2) + "\n");
 }
 
 for (const name of created) console.log(`  created  ${name}`);

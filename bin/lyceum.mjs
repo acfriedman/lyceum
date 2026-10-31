@@ -16,6 +16,7 @@ const COMMANDS = {
   render: ["render.mjs", "render a video (or one scene): <video> [--scene <id> [--draft]]"],
   stale: ["stale.mjs", "which videos' sources changed since they were checked: [<video>…] [--json] | --mark <video>…"],
   typecheck: ["typecheck.mjs", "type-check the project's scenes"],
+  version: ["version-check.mjs", "this Lyceum's version, and whether a newer release is out: [--hook]"],
   skill: ["skill.mjs", "install the agent skill: link [--agent claude,codex,agents] [--project <dir>]"],
 };
 
@@ -27,7 +28,8 @@ if (!command || command === "help" || command === "--help" || command === "-h" |
   process.exit(command && !["help", "--help", "-h"].includes(command) ? 2 : 0);
 }
 
-await noticeUpdate();
+// `version` checks for itself, every time.
+if (command !== "version") await noticeUpdate();
 
 // Each tool reads its arguments from process.argv, as if it had been run directly.
 const tool = join(TOOLS, COMMANDS[command][0]);

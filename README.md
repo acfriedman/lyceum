@@ -55,8 +55,10 @@ npx lyceum skill link                       # gives your coding agent the Lyceum
 Then ask your agent for a video: "make a 5-minute explainer on how our cache invalidation works." It's
 happy to walk you through the rest, from `project.md` to your voice key.
 
-A project depends on a Lyceum release (a `vX.Y.Z` tag), and `lyceum` commands tell you, at most once a
-day, when a newer one is out. Set `LYCEUM_NO_UPDATE_CHECK=1` to turn that off. See
+A project depends on a Lyceum release (a `vX.Y.Z` tag). `lyceum` commands tell you when a newer one is
+out (every six hours at most), and so does Claude Code when a chat starts, through a hook `lyceum init`
+adds to `.claude/settings.json`; `npx lyceum version` checks now. Set `LYCEUM_NO_UPDATE_CHECK=1` to turn
+that off. See
 [the releases](https://github.com/acfriedman/lyceum/releases) for what changed.
 
 Where should the project live, and what changes when a team shares it? See

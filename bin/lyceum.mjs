@@ -3,6 +3,7 @@
 
 import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { noticeUpdate } from "../tools/version.mjs";
 
 const TOOLS = join(dirname(fileURLToPath(import.meta.url)), "..", "tools");
 
@@ -25,6 +26,8 @@ if (!command || command === "help" || command === "--help" || command === "-h" |
   for (const [name, [, about]] of Object.entries(COMMANDS)) console.log(`  ${name.padEnd(10)} ${about}`);
   process.exit(command && !["help", "--help", "-h"].includes(command) ? 2 : 0);
 }
+
+await noticeUpdate();
 
 // Each tool reads its arguments from process.argv, as if it had been run directly.
 const tool = join(TOOLS, COMMANDS[command][0]);

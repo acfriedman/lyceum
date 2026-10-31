@@ -1,0 +1,24 @@
+# A pushed vX.Y.Z tag becomes a GitHub Release, with notes generated from the merged pull requests.
+# The tag must match package.json and the plugin manifest: `npm version` keeps all three together.
+name: release
+on:
+  push:
+    tags: ["v*.*.*"]
+permissions:
+  contents: write
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check the tag matches the manifests
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          for f in package.json .claude-plugin/plugin.json; do
+            v=$(node -p "require('./$f').version")
+            [ "$v" = "$tag" ] || { echo "$f says $v, the tag says $tag"; exit 1; }
+          done
+      - name: Publish the release
+        run: gh release create "$GITHUB_REF_NAME" --generate-notes --verify-tag
+        env:
+          GH_TOKEN: ${{ github.token }}

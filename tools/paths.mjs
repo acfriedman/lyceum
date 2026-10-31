@@ -20,7 +20,6 @@
 // much memory-hungry work runs at once.
 
 import { existsSync, mkdirSync, readFileSync } from "node:fs";
-import { homedir, platform } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -30,12 +29,8 @@ export const CONFIG_FILE = "lyceum.config.json";
 export const ENGINE = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 export const KIT = join(ENGINE, "kit");
 
-/** The machine-wide Lyceum directory: `LYCEUM_HOME`, else the platform's cache directory. */
-export const HOME =
-  process.env.LYCEUM_HOME ??
-  (platform() === "darwin"
-    ? join(homedir(), "Library", "Caches", "lyceum")
-    : join(process.env.XDG_CACHE_HOME ?? join(homedir(), ".cache"), "lyceum"));
+/** The machine-wide Lyceum directory (its own module, so tools outside a project can find it too). */
+export { HOME } from "./home.mjs";
 
 /** The project directory: `LYCEUM_PROJECT`, else the nearest directory above the working directory
  *  that holds lyceum.config.json. */

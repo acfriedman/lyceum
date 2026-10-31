@@ -6,6 +6,7 @@
 
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { basename, dirname, join, resolve } from "node:path";
+import { dependency } from "./version.mjs";
 
 const dir = resolve(process.argv[2] ?? ".");
 mkdirSync(dir, { recursive: true });
@@ -63,9 +64,9 @@ export const videos: { narration: Narration; scenes: SceneMap }[] = [
 `,
 );
 
-// package.json: `#kit` resolves to the kit, the lyceum dependency, and short scripts. It's named after its
-// directory, unless that's `lyceum/`, which would take its own dependency's name: then after the
-// directory around it, as `<parent>-explainers`.
+// package.json: `#kit` resolves to the kit, the lyceum dependency (this release onward, by tag), and short
+// scripts. It's named after its directory, unless that's `lyceum/`, which would take its own dependency's
+// name: then after the directory around it, as `<parent>-explainers`.
 const pkgPath = join(dir, "package.json");
 const slug = (name) => name.toLowerCase().replace(/[^a-z0-9-]+/g, "-");
 const name = slug(basename(dir)) === "lyceum" ? `${slug(basename(dirname(dir)))}-explainers` : slug(basename(dir));
@@ -77,7 +78,7 @@ pkg.scripts = {
   ...Object.fromEntries(["new", "narrate", "scenes", "stills", "render", "typecheck"].map((c) => [c, `lyceum ${c}`])),
   ...(pkg.scripts ?? {}),
 };
-pkg.dependencies = { lyceum: "github:acfriedman/lyceum", ...(pkg.dependencies ?? {}) };
+pkg.dependencies = { lyceum: dependency(), ...(pkg.dependencies ?? {}) };
 if (JSON.stringify(pkg) !== before) {
   (existsSync(pkgPath) ? updated : created).push("package.json");
   writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + "\n");

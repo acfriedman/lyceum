@@ -33,9 +33,9 @@ plus `pronounce` and `allowSpoken` entries that apply to every script.
 Commands: `npx lyceum <command>`. Projects created by `lyceum init` also have the same commands as npm
 scripts (`npm run narrate -- <slug>`).
 
-If a command prints that a newer Lyceum release is available (a line starting 🎁), tell the user once,
-in a sentence that starts with 🎁, with the command it gives and the link to what changed. Don't update unless they ask: a new release can
-change how every video renders.
+If a command prints that a newer Lyceum release is available (a line starting 🎁), tell the user once, in
+a sentence that starts with 🎁, with the command it gives and the link to what changed. Don't update
+unless they ask: a new release can change how every video renders.
 
 ## Workflow
 

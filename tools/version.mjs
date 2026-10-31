@@ -57,7 +57,7 @@ export async function noticeUpdate() {
     const latest = state.latest && parse(state.latest);
     if (latest && newer(latest, parse(VERSION))) {
       console.error(
-        `🆕 lyceum ${state.latest} is available (this project has ${VERSION}): npm install ${dependency(state.latest)}\n` +
+        `🎁 lyceum ${state.latest} is available (this project has ${VERSION}): npm install ${dependency(state.latest)}\n` +
           `  what changed: https://github.com/${REPO}/releases\n`,
       );
     }

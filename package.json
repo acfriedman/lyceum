@@ -1,6 +1,6 @@
 {
   "name": "lyceum",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "Explainer videos made of animated, narrated diagrams, written like a screenplay: text-to-speech with word timings, and React scenes timed to the spoken words, rendered in headless Chrome. Built to be driven by a coding agent.",
   "license": "MIT",
   "author": "Andrew Friedman",

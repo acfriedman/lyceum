@@ -14,6 +14,9 @@ const nameEnd = (depth: number, name: string) => rowX(depth) + name.length * SIZ
 
 /** init's files, in the order it prints them. */
 const CREATED = ["lyceum.config.json", "project.md", "videos/index.ts", "package.json", "tsconfig.json", ".gitignore"] as const;
+/** init's last line: the session-start hook it adds to the repository around the project (outside the
+ *  tree here, since it lives in the app's repository, not in lyceum/). */
+const HOOK = "../.claude/settings.json";
 const FIRST = 4; // the lyceum/ row
 
 /** The dashed boundary around lyceum/ and its six children. */
@@ -25,6 +28,8 @@ const BOUND = {
 };
 
 const PANEL_X = 1080;
+/** lyceum/package.json's panel sits a little further left, to fit the dependency's version range. */
+const PKG_X = 1040;
 
 /** A dashed rounded rectangle whose outline draws on. (The kit's `Box` with `dashed` draws solid,
  *  since its dash lengths are measured against `pathLength={1}`, and it fades rather than draws.) */
@@ -143,19 +148,19 @@ export const OwnProject: React.FC = () => {
       <Panel
         x={PANEL_X}
         y={rowY(FIRST) - 40}
-        w={600}
+        w={680}
         title="terminal"
         size={28}
         at={creates}
         out={withIts}
-        lines={CREATED.map((name, i) => ({ text: `  created  ${name}`, color: C.dim, at: childAt(i) }))}
+        lines={[...CREATED, HOOK].map((name, i) => ({ text: `  created  ${name}`, color: C.dim, at: childAt(i) }))}
       />
 
       {/* Its own dependencies. */}
       <Svg>
         <Line
           from={[nameEnd(2, "package.json") + 24, rowY(pkgRow)]}
-          to={[PANEL_X - 16, rowY(pkgRow)]}
+          to={[PKG_X - 16, rowY(pkgRow)]}
           at={deps}
           out={never}
           dur={0.5}
@@ -166,18 +171,18 @@ export const OwnProject: React.FC = () => {
         />
       </Svg>
       <Panel
-        x={PANEL_X}
-        y={rowY(pkgRow) - (panelLineY(2, 0, 28))}
-        w={760}
+        x={PKG_X}
+        y={rowY(pkgRow) - (panelLineY(2, 0, 24))}
+        w={820}
         title="lyceum/package.json"
-        size={28}
+        size={24}
         border={ROLE.lyceum}
         at={deps}
         out={never}
         lines={[
           { text: '"imports": { "#kit": "lyceum/kit" },' },
           { text: '"dependencies": {' },
-          { text: '  "lyceum": "github:acfriedman/lyceum"', color: ROLE.lyceum },
+          { text: '  "lyceum": "github:acfriedman/lyceum#semver:^0.3.0"', color: ROLE.lyceum },
           { text: "}" },
         ]}
         highlight={[{ lines: [2], at: deps + s(0.5), color: ROLE.lyceum }]}

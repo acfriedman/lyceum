@@ -1,7 +1,7 @@
 ---
 title: "Where your videos live"
 status: approved by Andrew 2026-10-08, voice cedar
-updated: 2026-10-11
+updated: 2026-11-01
 # Written form → spoken form, applied only to the text sent to the voice.
 pronounce: {}
 sources:
@@ -9,12 +9,13 @@ sources:
   - tools/stale.mjs (spotting stale videos: sources, verified:, and the commits since)
   - package.json (Lyceum's dependencies: react 19, puppeteer-core, esbuild, typescript 7)
   - tools/chrome.mjs (the renderer loads the project's own React when it can resolve one)
-  - tools/init.mjs (what init creates: lyceum.config.json, project.md, videos/index.ts, package.json, tsconfig.json, .gitignore; its printed output)
+  - tools/init.mjs (what init creates: lyceum.config.json, project.md, videos/index.ts, package.json, tsconfig.json, .gitignore, and the repository's .claude/settings.json; its printed output)
+  - tools/version.mjs (the dependency init writes: github:acfriedman/lyceum#semver:^X.Y.Z)
   - tools/skill.mjs (skill link: per user by default, --project for one repository; "linked" and "skipped … already exists" output)
   - tools/narrate.mjs (keys from the environment or the nearest .env; clips cached in .cache/)
   - tools/stills.mjs and tools/render.mjs (stills need only narration.json; render needs the clips in .cache/public)
   - explainers/ (a real in-repository project: .gitignore, what-is-lyceum's committed files total 132 KB)
-verified: "5dd0ea28a264"
+verified: "4c3eb057daa2"
 captions: burned
 ---
 
@@ -66,8 +67,9 @@ Go or Swift, there's no dependencies file to add it to at all.
 > Visual: The `your-app/` tree returns. At the top, a terminal line types on:
 > `npx lyceum init lyceum`. On "creates a folder", `lyceum/` grows beside `src/`, and its
 > children appear one by one, matching init's real output: `lyceum.config.json`, `project.md`,
-> `videos/index.ts`, `package.json`, `tsconfig.json`, `.gitignore`. On "its own dependencies",
-> `lyceum/package.json` highlights with `"lyceum": "github:acfriedman/lyceum"`. On "a guide for the
+> `videos/index.ts`, `package.json`, `tsconfig.json`, `.gitignore`; the terminal's last line, `created
+> ../.claude/settings.json`, has no row in the tree. On "its own dependencies", `lyceum/package.json`
+> highlights with `"lyceum": "github:acfriedman/lyceum#semver:^0.3.0"`. On "a guide for the
 > agent", `project.md` highlights; on "a folder for videos", `videos/`. On "never sees", a dashed
 > boundary draws around `lyceum/`. On "monorepo", three labels approach the boundary from outside,
 > "workspaces", "root type check", "lint and continuous integration", and each stops short of it with a

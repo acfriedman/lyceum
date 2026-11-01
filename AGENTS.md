@@ -22,6 +22,8 @@ kit/                what scenes import as "#kit": timing (cue.tsx), the frame cl
 fonts/              CMU Serif and JetBrains Mono (SIL Open Font License)
 skills/lyceum/      the agent skill (Agent Skills format: SKILL.md + references/)
 .claude-plugin/     packages the skill as a Claude Code plugin and marketplace
+scripts/            maintainer scripts, not shipped: sync-version.mjs (run by `npm version`)
+.github/workflows/  release.yml: a pushed vX.Y.Z tag becomes a GitHub Release
 explainers/         a Lyceum project of videos about Lyceum, made with this checkout (`file:..`): the
                     README's video. Not part of the published package
 ```
@@ -64,3 +66,22 @@ explainers/         a Lyceum project of videos about Lyceum, made with this chec
   run subagents…", not a specific tool name.
 - **Licenses:** Lyceum is MIT, and its dependencies should stay permissive (MIT, Apache 2.0, ISC, BSD).
   Don't copy code from Remotion, which Lyceum used to render with: its license isn't MIT.
+
+## Releases
+
+Projects depend on a release, not on main: `lyceum init` writes `github:acfriedman/lyceum#semver:^X.Y.Z`
+(`tools/version.mjs`), and npm resolves the range against the repository's tags. Every six hours at
+most, a `lyceum` command checks the tags and prints a line if a newer release exists; the skill tells the
+agent to pass it on. `lyceum version --hook` checks every time and prints only when one exists, with what
+to do about it: `lyceum init` runs it from a Claude Code session-start hook in the repository's
+`.claude/settings.json`, so a fresh chat hears about a release before any command runs. The check is
+skipped in CI, with `LYCEUM_NO_UPDATE_CHECK` set, and in a git checkout.
+
+- **What the number means.** Major: a change that breaks existing scenes or projects (the `#kit` API,
+  `script.md`'s format, `lyceum.config.json`'s keys). Minor: new features. Patch: fixes. While Lyceum is
+  0.x, a breaking change bumps the minor instead, which `^0.Y.Z` keeps projects from taking unasked.
+- **Cutting one.** On an up-to-date main: `npm version patch|minor|major`, which bumps package.json and
+  `.claude-plugin/plugin.json` in one commit and tags it, then `git push --follow-tags`. The release
+  workflow checks the tag against both manifests and publishes a GitHub Release with generated notes.
+- **Say what it costs.** Edit the release's notes to flag anything that re-renders every scene (kit or
+  `CHROME_BUILD` changes) or re-bills narration (voice defaults).

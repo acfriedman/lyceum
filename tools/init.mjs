@@ -5,7 +5,8 @@
 //   lyceum init [<dir>]
 
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { basename, dirname, join, resolve } from "node:path";
+import { basename, dirname, join, relative, resolve } from "node:path";
+import { dependency } from "./version.mjs";
 
 const dir = resolve(process.argv[2] ?? ".");
 mkdirSync(dir, { recursive: true });
@@ -63,9 +64,9 @@ export const videos: { narration: Narration; scenes: SceneMap }[] = [
 `,
 );
 
-// package.json: `#kit` resolves to the kit, the lyceum dependency, and short scripts. It's named after its
-// directory, unless that's `lyceum/`, which would take its own dependency's name: then after the
-// directory around it, as `<parent>-explainers`.
+// package.json: `#kit` resolves to the kit, the lyceum dependency (this release onward, by tag), and short
+// scripts. It's named after its directory, unless that's `lyceum/`, which would take its own dependency's
+// name: then after the directory around it, as `<parent>-explainers`.
 const pkgPath = join(dir, "package.json");
 const slug = (name) => name.toLowerCase().replace(/[^a-z0-9-]+/g, "-");
 const name = slug(basename(dir)) === "lyceum" ? `${slug(basename(dirname(dir)))}-explainers` : slug(basename(dir));
@@ -77,7 +78,7 @@ pkg.scripts = {
   ...Object.fromEntries(["new", "narrate", "scenes", "stills", "render", "typecheck"].map((c) => [c, `lyceum ${c}`])),
   ...(pkg.scripts ?? {}),
 };
-pkg.dependencies = { lyceum: "github:acfriedman/lyceum", ...(pkg.dependencies ?? {}) };
+pkg.dependencies = { lyceum: dependency(), ...(pkg.dependencies ?? {}) };
 if (JSON.stringify(pkg) !== before) {
   (existsSync(pkgPath) ? updated : created).push("package.json");
   writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + "\n");
@@ -116,6 +117,23 @@ const missing = ignore.filter((line) => !existing.includes(line));
 if (missing.length) {
   appendFileSync(ignorePath, (existing.length && existing.at(-1) !== "" ? "\n" : "") + missing.join("\n") + "\n");
   (existing.length ? updated : created).push(".gitignore");
+}
+
+// .claude/settings.json: a session-start hook, so Claude Code hears about a newer Lyceum release when a
+// chat begins, not only when a command runs. It goes in the repository holding the project, where the
+// agent is opened, and runs the project's own install; until that exists it prints nothing.
+let root = dir;
+while (!existsSync(join(root, ".git")) && dirname(root) !== root) root = dirname(root);
+if (!existsSync(join(root, ".git"))) root = dir;
+const settingsPath = join(root, ".claude", "settings.json");
+const settings = existsSync(settingsPath) ? JSON.parse(readFileSync(settingsPath, "utf8")) : {};
+const sessionStart = (settings.hooks ??= {}).SessionStart ??= [];
+if (!sessionStart.some((entry) => entry.hooks?.some((h) => /lyceum"? version --hook/.test(h.command ?? "")))) {
+  const bin = join("$CLAUDE_PROJECT_DIR", relative(root, dir), "node_modules", ".bin", "lyceum");
+  sessionStart.push({ matcher: "startup", hooks: [{ type: "command", command: `"${bin}" version --hook 2>/dev/null || true`, timeout: 10 }] });
+  (existsSync(settingsPath) ? updated : created).push(relative(dir, settingsPath));
+  mkdirSync(dirname(settingsPath), { recursive: true });
+  writeFileSync(settingsPath, JSON.stringify(settings, null, 2) + "\n");
 }
 
 for (const name of created) console.log(`  created  ${name}`);

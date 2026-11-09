@@ -52,8 +52,8 @@ export function findProject(from = process.env.LYCEUM_PROJECT ?? process.cwd()) 
  *   voice        the default narration voice, as a script's `voice:` frontmatter would set it
  *   voices       per provider, overrides of its default voice (e.g. a pinned model), however the
  *                provider is chosen
- *   providers    the only voice providers narration may be sent to (unset: none but the local `say`;
- *                `lyceum init` writes ["openai"], the default voice's)
+ *   providers    the only voice providers narration may be sent to (unset: none but the local `say`).
+ *                `lyceum init` writes the voice chosen there, say unless another is picked
  *   whisper      the Whisper that aligns narration: { backend, mlx: { version, model, revision },
  *                "faster-whisper": { … } } (see ALIGNERS in narrate.mjs)
  *   store        an S3-compatible bucket for caches and published videos (see store.mjs)

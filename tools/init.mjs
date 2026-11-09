@@ -2,13 +2,31 @@
 // Makes a directory a Lyceum project, or fills in what an existing one is missing. Never overwrites a
 // file; package.json, tsconfig.json and .gitignore only gain the entries Lyceum needs.
 //
-//   lyceum init [<dir>]
+//   lyceum init [<dir>] [--provider say|openai|gemini]
+//
+// A new project's voice is chosen here: `--provider`, else the answer to a prompt when someone is at
+// the terminal, else say.
 
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { basename, dirname, join, relative, resolve } from "node:path";
+import { createInterface } from "node:readline/promises";
 import { dependency } from "./version.mjs";
 
-const dir = resolve(process.argv[2] ?? ".");
+// The voices narrate knows (VOICES in narrate.mjs), the local one first: it's the default.
+const VOICES = {
+  say: "macOS's built-in voice: free, and narration never leaves this machine",
+  openai: "OpenAI's gpt-4o-mini-tts: narration is sent to OpenAI (needs OPENAI_KEY)",
+  gemini: "Google's Gemini text-to-speech: narration is sent to Google (needs GEMINI_API_KEY)",
+};
+
+const argv = process.argv.slice(2);
+const flag = argv.indexOf("--provider");
+const provider = flag < 0 ? undefined : argv[flag + 1];
+if (flag >= 0 && !VOICES[provider]) {
+  console.error(`--provider: use ${Object.keys(VOICES).join(", ")}`);
+  process.exit(2);
+}
+const dir = resolve(argv.find((arg, i) => !arg.startsWith("--") && argv[i - 1] !== "--provider") ?? ".");
 mkdirSync(dir, { recursive: true });
 const created = [];
 const updated = [];
@@ -21,12 +39,38 @@ function create(name, content) {
   created.push(name);
 }
 
-// `providers` names where narration may be sent (narrate sends nothing until it's set): the default
-// voice's provider, so a new project can narrate, and anyone reading the config sees where it goes.
-create(
-  "lyceum.config.json",
-  JSON.stringify({ videos: "videos", cache: ".cache", project: "project.md", providers: ["openai"], pronounce: {}, allowSpoken: [] }, null, 2) + "\n",
-);
+/** The voice a new project narrates with: `--provider`, else the answer to a prompt, else say. */
+async function chooseVoice() {
+  if (provider) return provider;
+  if (!process.stdin.isTTY || !process.stdout.isTTY) return "say"; // an agent or a script: no one to ask
+  console.log("Which voice should narrate this project's videos?");
+  for (const [name, about] of Object.entries(VOICES)) console.log(`  ${name.padEnd(7)} ${about}`);
+  const prompt = createInterface({ input: process.stdin, output: process.stdout });
+  try {
+    for (;;) {
+      const answer = (await prompt.question("Voice [say]: ")).trim().toLowerCase() || "say";
+      if (VOICES[answer]) return answer;
+      console.log(`  one of ${Object.keys(VOICES).join(", ")}, please`);
+    }
+  } finally {
+    prompt.close();
+  }
+}
+
+// The chosen voice is the project's `voice` and its only entry in `providers`, the list of where
+// narration may be sent (narrate sends nothing to a hosted voice until it's set), so nothing goes
+// anywhere the person setting the project up didn't pick.
+const voice = existsSync(join(dir, "lyceum.config.json")) ? null : await chooseVoice();
+if (voice) {
+  create(
+    "lyceum.config.json",
+    JSON.stringify(
+      { videos: "videos", cache: ".cache", project: "project.md", voice: { provider: voice }, providers: [voice], pronounce: {}, allowSpoken: [] },
+      null,
+      2,
+    ) + "\n",
+  );
+}
 
 create(
   "project.md",
@@ -141,10 +185,24 @@ if (!sessionStart.some((entry) => entry.hooks?.some((h) => /lyceum"? version --h
 for (const name of created) console.log(`  created  ${name}`);
 for (const name of updated) console.log(`  updated  ${name}`);
 if (!created.length && !updated.length) console.log("  nothing to do: this is already a Lyceum project");
-console.log(`
-Next:
-  npm install                       installs Lyceum
-  npx lyceum skill link             gives your coding agent the skill that drives the workflow
-  edit project.md                   audience, ground truth, house rules
-  check lyceum.config.json          "providers" lists where narration may be sent (OpenAI to start)
-  npx lyceum new <slug> "<Title>"   then ask your agent to write the script`);
+const step = (what, why) => `  ${what.padEnd(34)}${why}`;
+const KEYS = { openai: "OPENAI_KEY", gemini: "GEMINI_API_KEY" };
+const voiceSteps = !voice
+  ? []
+  : voice === "say"
+    ? [step("narration voice: say", `free, and stays on this machine; "voice" and "providers" in lyceum.config.json change it`)]
+    : [step(`put ${KEYS[voice]} in .env`, `narration is sent to ${voice === "openai" ? "OpenAI" : "Google"}, the voice you chose`)];
+if (voice === "say" && process.platform !== "darwin") {
+  voiceSteps.push(step("", `say is macOS's voice: to narrate here, set "voice" and "providers" to openai or gemini`));
+}
+console.log(
+  [
+    "",
+    "Next:",
+    step("npm install", "installs Lyceum"),
+    step("npx lyceum skill link", "gives your coding agent the skill that drives the workflow"),
+    step("edit project.md", "audience, ground truth, house rules"),
+    ...voiceSteps,
+    step(`npx lyceum new <slug> "<Title>"`, "then ask your agent to write the script"),
+  ].join("\n"),
+);

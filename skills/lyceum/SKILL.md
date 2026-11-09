@@ -15,10 +15,15 @@ it works.
 ## 0. Find the project and read its guide
 
 A Lyceum project is the directory holding `lyceum.config.json`, found at or above the working directory.
-Run every command from there. If there is none, ask the user where the videos should live and run
-`npx lyceum init <dir>`, then `npm install`. Suggest `lyceum/` inside the repository the videos
-explain, or a repository of its own for videos that span several repositories or a whole product. Never
-add Lyceum to an application's own `package.json`.
+Run every command from there. If there is none, ask the user where the videos should live and which
+voice should narrate them, then run `npx lyceum init <dir> --provider <voice>` and `npm install`.
+- **Where:** suggest `lyceum/` inside the repository the videos explain, or a repository of its own for
+  videos that span several repositories or a whole product. Never add Lyceum to an application's own
+  `package.json`.
+- **Which voice:** `say` (macOS's built-in voice: free, and nothing leaves the machine; the default),
+  `openai` or `gemini` (narration is sent to that company, and needs its key). The choice becomes the
+  project's voice and its only allowed provider. Always pass `--provider`: without it, `init` asks at
+  the terminal, which you can't answer.
 
 Read the file named by the config's `project` (usually `project.md`; older projects name it under
 `brief`) before anything else. It holds what this skill can't know, for every video in the project:
@@ -118,9 +123,10 @@ wait. They may waive review ("I trust your script"). Respect that, but still sho
 ### 4. Narrate
 
 ```bash
-npx lyceum narrate <slug>                         # OpenAI gpt-4o-mini-tts, voice "cedar" (default)
+npx lyceum narrate <slug>                         # the project's voice (lyceum init sets it)
+npx lyceum narrate <slug> --provider say          # free macOS voice; nothing leaves the machine
+npx lyceum narrate <slug> --provider openai       # OpenAI gpt-4o-mini-tts, voice "cedar"
 npx lyceum narrate <slug> --provider gemini       # Google gemini-3.8-flash-tts, voice "Charon"
-npx lyceum narrate <slug> --provider say          # free macOS draft voice
 npx lyceum narrate <slug> --only <scene>          # one scene
 ```
 

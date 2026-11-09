@@ -93,6 +93,7 @@ lyceum/
 | `providers` | any | the only voice providers narration may be sent to, e.g. `["openai", "say"]`; clips already cached are reused whatever their provider |
 | `whisper` | mlx-whisper 0.4.3 on Apple Silicon, faster-whisper 1.2.1 elsewhere; both run `whisper-large-v3-turbo` at a fixed revision | the Whisper that times the words: `{ "backend": "mlx" \| "faster-whisper", "mlx": { "version", "model", "revision" }, "faster-whisper": { … } }`; `LYCEUM_ALIGNER` picks the backend for one run |
 | `store` | none | an S3-compatible bucket (e.g. Cloudflare R2) that shares voiced clips and rendered scenes between machines, CI included, and holds what `lyceum publish` puts out: `{ "endpoint", "bucket", "public", "region", "prefix" }`. Credentials come from `LYCEUM_STORE_ACCESS_KEY_ID` and `LYCEUM_STORE_SECRET_ACCESS_KEY` |
+| `coverage` | none | which tracked files must each have a video, from the repository's root: `{ "explains": "**/README.md", "exclude": ["Tests/**"] }`. A script names its file under `explains:`. `lyceum stale` lists files with no video and videos whose file is gone, and `lyceum embed` shows a video in its file as a thumbnail |
 | `pronounce` | `{}` | written → spoken, for every script (a script's own map wins) |
 | `allowSpoken` | `[]` | acronyms the narration check should allow |
 | `captions` | `"track"` | `"track"`: subtitles viewers turn on; `"burned"`: drawn into the picture (a script's `captions:` wins) |

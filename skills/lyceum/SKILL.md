@@ -280,6 +280,16 @@ without one, since the last commit to touch the video). It exits 1 if any video 
 video's own directory don't count. It runs on committed history, so a shallow clone needs
 `git fetch --unshallow` first.
 
+A video that explains one file, such as a README, names it under `explains:`. That file is always
+watched, but edits inside its video block don't count. If the project sets `coverage`, `stale` also
+lists:
+- `missing`: a covered file with no video, under a suggested slug. Start one with
+  `npx lyceum new <slug> "<Title>" --explains <path>`.
+- `orphaned`: a video whose file is gone.
+
+With a store configured, `npx lyceum publish <slug>` puts a rendered video at its fixed URLs, and
+`npx lyceum embed <slug>` shows it in its file.
+
 A changed file doesn't mean a wrong video, and most diffs won't affect it. To revise a stale video:
 1. Read the diffs and commit messages against what the narration and `> Visual:` briefs claim. A claim
    is stale when it is now false, or when a name, value or snippet on screen no longer matches. A rename

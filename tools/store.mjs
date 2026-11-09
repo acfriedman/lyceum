@@ -119,6 +119,19 @@ export async function fetchObject(key, dest) {
   }
 }
 
+/** The JSON stored at `key`, or null when it isn't there or can't be read. */
+export async function readJson(key) {
+  if (!STORE) return null;
+  try {
+    const response = await ask("GET", key);
+    if (!response?.ok) return null;
+    return JSON.parse(await response.text());
+  } catch (error) {
+    warn(error);
+    return null;
+  }
+}
+
 /** Whether the store holds `key`. */
 export async function hasObject(key) {
   if (!STORE) return false;

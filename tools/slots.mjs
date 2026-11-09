@@ -23,6 +23,8 @@ export const SLOTS = {
   whisper: Math.max(1, Math.floor(totalmem() / (8 * GB))),
   browser: Math.max(1, Math.floor(totalmem() / (16 * GB))),
   typecheck: Math.max(1, Math.floor(totalmem() / (8 * GB))),
+  // Not memory: one headless Chrome download at a time, since two would write the same archive.
+  chrome: 1,
 };
 
 function alive(pid) {

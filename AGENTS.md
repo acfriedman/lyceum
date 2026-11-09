@@ -17,10 +17,10 @@ tools/              one file per command, plus paths.mjs (the layout, described 
                     video.mjs (a video as the renderer sees it: the title card, the scenes, its caption
                     setting), store.mjs (the project's bucket: clips by hash, scenes by fingerprint,
                     published videos), coverage.mjs (which files must have a video, and the block that
-                    shows one in its file), env.mjs (secrets from the environment or .env), ci.mjs with
-                    ci-workflow.yml (unattended refreshes from GitHub Actions), align.py (Whisper word
-                    alignment) and chrome.mjs (the renderer: the kit's page, bundled with esbuild and
-                    drawn frame by frame in headless Chrome)
+                    shows one in its file), env.mjs (secrets from the environment or the project's
+                    .env), ci.mjs with ci-workflow.yml (unattended refreshes from GitHub Actions),
+                    align.py (Whisper word alignment) and chrome.mjs (the renderer: the kit's page,
+                    bundled with esbuild and drawn frame by frame in headless Chrome)
 kit/                what scenes import as "#kit": timing (cue.tsx), the frame clock, primitives, theme
                     and the stage, plus the page the renderer draws them in (page.tsx)
 fonts/              CMU Serif and JetBrains Mono (SIL Open Font License)
@@ -79,7 +79,9 @@ explainers/         a Lyceum project of videos about Lyceum, made with this chec
 ## Releases
 
 Projects depend on a release, not on main: `lyceum init` writes `github:acfriedman/lyceum#semver:^X.Y.Z`
-(`tools/version.mjs`), and npm resolves the range against the repository's tags. Every six hours at
+(`tools/version.mjs`), and npm resolves the range against the repository's tags. The repository is the
+one that copy of Lyceum was installed from (`REPO`: the install's lockfile, else package.json's
+`repository`), so a fork's installs check, pin and link to the fork, not this repository. Every six hours at
 most, a `lyceum` command checks the tags and prints a line if a newer release exists; the skill tells the
 agent to pass it on. `lyceum version --hook` checks every time and prints only when one exists, with what
 to do about it: `lyceum init` runs it from a Claude Code session-start hook in the repository's

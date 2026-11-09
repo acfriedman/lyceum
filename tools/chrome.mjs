@@ -2,19 +2,34 @@
 // localhost, and drawn frame by frame in a pinned headless Chrome. `openScene` gives one scene's frames
 // as screenshots: stills.mjs tiles a few of them, render.mjs pipes all of them into ffmpeg.
 
-import { Browser, computeExecutablePath, install } from "@puppeteer/browsers";
+import { Browser, Cache, computeExecutablePath, detectBrowserPlatform, install } from "@puppeteer/browsers";
 import { build } from "esbuild";
 import puppeteer from "puppeteer-core";
-import { existsSync, readFileSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { createReadStream, existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { createRequire } from "node:module";
 import { basename, extname, join } from "node:path";
 import { ENGINE, HOME, KIT, REGISTRY, ROOT } from "./paths.mjs";
+import { withSlot } from "./slots.mjs";
 import { loadVideo, pageOptions } from "./video.mjs";
 
 /** The Chrome for Testing build that draws frames, pinned: text and filters can come out differently in
  *  another build, so render.mjs fingerprints it. */
 export const CHROME_BUILD = "149.0.7790.0";
+
+/** The SHA-256 of CHROME_BUILD's archive for each platform (by @puppeteer/browsers' names). A download
+ *  that doesn't match is deleted and never run. Bumping CHROME_BUILD needs its hashes in the same change,
+ *  or Chrome won't download at all: `node scripts/chrome-hashes.mjs` writes them. */
+const CHROME_SHA256 = {
+  "149.0.7790.0": {
+    linux: "a3b011ab4c726e215cdeb623907a09cfb48f07054a7271fdda555ee2ae4f804d",
+    mac: "2597bf0940b54afbdfcb76519b5c8cf423cec49eea90ce1c4123456aca47a851",
+    mac_arm: "17ef152eba8ffcfebc42e25ab295eb040d8e62455cff7dfcc735b652456d6899",
+    win32: "44c3064d2880536693e882e486093969ccdb77a8843ca61bd65fc6d25b3d9155",
+    win64: "8a112c0e768907ff382ff994dcde35cdbd0e1f5a3a475da93d3a83e3260e78c2",
+  },
+};
 
 // Switches for drawing frames: the same pixels on every machine, and no throttling of the tabs that
 // draw in parallel.
@@ -117,13 +132,57 @@ async function serve(files) {
   return server;
 }
 
-/** The pinned headless Chrome, downloaded into the Lyceum home directory on first use. */
+/** A file's SHA-256, streamed. */
+function sha256(file) {
+  return new Promise((done, fail) => {
+    const hash = createHash("sha256");
+    createReadStream(file).on("data", (chunk) => hash.update(chunk)).on("end", () => done(hash.digest("hex"))).on("error", fail);
+  });
+}
+
+/**
+ * The pinned headless Chrome, downloaded into the Lyceum home directory on first use. Its archive is
+ * checked against CHROME_SHA256 before it's unpacked, and the install is stamped with the hash it was
+ * checked against: one without the stamp (from before Lyceum checked, or cut short) is deleted and
+ * downloaded again.
+ */
 async function chrome() {
-  const options = { browser: Browser.CHROMEHEADLESSSHELL, buildId: CHROME_BUILD, cacheDir: join(HOME, "chrome") };
+  const platform = detectBrowserPlatform();
+  const expected = CHROME_SHA256[CHROME_BUILD]?.[platform];
+  if (!expected) {
+    throw new Error(
+      CHROME_SHA256[CHROME_BUILD]
+        ? `headless Chrome ${CHROME_BUILD} isn't available for ${platform ?? `${process.platform} ${process.arch}`}`
+        : `no SHA-256 for headless Chrome ${CHROME_BUILD}: CHROME_SHA256 in tools/chrome.mjs is for another build ` +
+            `(node scripts/chrome-hashes.mjs writes it)`,
+    );
+  }
+  const options = { browser: Browser.CHROMEHEADLESSSHELL, buildId: CHROME_BUILD, platform, cacheDir: join(HOME, "chrome") };
   const path = computeExecutablePath(options);
-  if (existsSync(path)) return path;
-  console.log(`  downloading headless Chrome ${CHROME_BUILD} (once per machine)…`);
-  return (await install(options)).executablePath;
+  const dir = new Cache(options.cacheDir).installationDir(options.browser, platform, CHROME_BUILD);
+  const stamp = join(dir, ".lyceum-sha256");
+  const verified = () => existsSync(path) && existsSync(stamp) && readFileSync(stamp, "utf8").trim() === expected;
+  if (verified()) return path;
+  // One download at a time on the machine: two would write the same archive.
+  return withSlot("chrome", async () => {
+    if (verified()) return path; // another command installed it while this one waited
+    rmSync(dir, { recursive: true, force: true });
+    console.log(`  downloading headless Chrome ${CHROME_BUILD} (once per machine)…`);
+    // The download is checked as it arrives (expectedHash), and the archive checked again here before
+    // it's unpacked: @puppeteer/browsers would unpack an archive already on disk without checking it.
+    const archive = await install({ ...options, unpack: false, expectedHash: expected });
+    const actual = await sha256(archive);
+    if (actual !== expected) {
+      rmSync(archive, { force: true });
+      throw new Error(
+        `headless Chrome ${CHROME_BUILD}'s archive has SHA-256 ${actual}, not the ${expected} Lyceum expects: ` +
+          `deleted it rather than run it`,
+      );
+    }
+    const { executablePath } = await install({ ...options, expectedHash: expected });
+    writeFileSync(stamp, `${expected}\n`);
+    return executablePath;
+  });
 }
 
 /** A tab drawing the scene at `url`: `capture(frame, format, quality)` draws a frame and screenshots it. */

@@ -26,7 +26,8 @@ kit/                what scenes import as "#kit": timing (cue.tsx), the frame cl
 fonts/              CMU Serif and JetBrains Mono (SIL Open Font License)
 skills/lyceum/      the agent skill (Agent Skills format: SKILL.md + references/)
 .claude-plugin/     packages the skill as a Claude Code plugin and marketplace
-scripts/            maintainer scripts, not shipped: sync-version.mjs (run by `npm version`)
+scripts/            maintainer scripts, not shipped: sync-version.mjs (run by `npm version`) and
+                    chrome-hashes.mjs (the pinned Chrome's SHA-256s)
 .github/workflows/  release.yml: a pushed vX.Y.Z tag becomes a GitHub Release
 explainers/         a Lyceum project of videos about Lyceum, made with this checkout (`file:..`): the
                     README's video. Not part of the published package
@@ -58,6 +59,10 @@ explainers/         a Lyceum project of videos about Lyceum, made with this chec
 - **Render fingerprints:** they include every kit file and the pinned Chrome build (`CHROME_BUILD` in
   `tools/chrome.mjs`). Changing either re-renders every scene of every project once. That's correct, but
   say so in the commit.
+- **Chrome's hashes:** `CHROME_SHA256`, beside `CHROME_BUILD`, holds the SHA-256 of the build's archive
+  for each platform, and a download that doesn't match is deleted and never run. Bump the build with
+  `node scripts/chrome-hashes.mjs` in the same change: it rewrites the hashes from Google's bucket (which
+  publishes none of its own), and until they match the build, Chrome won't download at all.
 - **Store keys are content addresses.** A project's store files clips under narrate's hash and scenes
   under render's fingerprint, so anything that changes either also misses every store. Nothing in the
   normal flow deletes from a store.

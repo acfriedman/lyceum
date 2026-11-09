@@ -23,7 +23,7 @@ import { execFileSync, spawn, spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
-import { CACHE, ROOT, VIDEOS, videoDir, workDir } from "./paths.mjs";
+import { CACHE, CONFIG, CONFIG_FILE, ROOT, VIDEOS, videoDir, workDir } from "./paths.mjs";
 import { frontmatter } from "./script.mjs";
 import { STORE, readJson } from "./store.mjs";
 
@@ -74,6 +74,10 @@ function init() {
   OPENAI_KEY (or the key of the project's voice)                narration
   CLAUDE_CODE_OAUTH_TOKEN (from \`claude setup-token\`) or ANTHROPIC_API_KEY   the agent
 and, under Settings → Actions → General, "Allow GitHub Actions to create and approve pull requests".`);
+  if (CONFIG.providers === undefined) {
+    console.log(`\n${CONFIG_FILE} doesn't list "providers" yet, so narration in CI will refuse to send anything to a ` +
+      `hosted voice. Add the providers the project may use, e.g. "providers": ["openai"].`);
+  }
 }
 
 // ── plan ────────────────────────────────────────────────────────────────────────────────────────────

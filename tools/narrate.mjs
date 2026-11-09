@@ -15,9 +15,10 @@
 // align.py (beside this file), which derives them with local Whisper (a Python venv shared by every
 // project, under the Lyceum home directory, created on first use).
 //
-// The project's lyceum.config.json can set a default `voice`, pin each provider's voice under `voices`
-// (its model, say), list the only `providers` its narration may be sent to, and add `pronounce` and
-// `allowSpoken` entries that apply to every script; a script's own frontmatter wins.
+// The project's lyceum.config.json lists the only `providers` its narration may be sent to: until it
+// does, nothing is sent to a hosted voice. It can also set a default `voice`, pin each provider's voice
+// under `voices` (its model, say), and add `pronounce` and `allowSpoken` entries that apply to every
+// script; a script's own frontmatter wins.
 
 import { createHash } from "node:crypto";
 import { execFile, execFileSync, spawnSync } from "node:child_process";
@@ -103,14 +104,29 @@ function providerChoice(cliProvider, scriptVoice, video) {
   return "Lyceum's default";
 }
 
+// Voices that run on this machine: their narration goes nowhere, so they need no `providers` entry
+// while a project hasn't set one.
+const LOCAL = new Set(["say"]);
+
 /**
  * A project's `providers` lists where its narration may be sent: nothing is voiced by any other
- * provider. Clips already cached never leave the machine, so they're reused whatever their provider;
- * only `toVoice`, the scenes that would be voiced now, are refused.
+ * provider, and until the project sets it, by no hosted provider at all (a local voice still runs).
+ * Clips already cached never leave the machine, so they're reused whatever their provider; only
+ * `toVoice`, the scenes that would be voiced now, are refused.
  */
 function checkProviderAllowed(provider, chosenBy, toVoice) {
   const allowed = CONFIG.providers;
-  if (allowed === undefined || allowed.includes(provider) || toVoice.length === 0) return;
+  if (toVoice.length === 0) return;
+  if (allowed === undefined) {
+    if (LOCAL.has(provider)) return;
+    throw new Error(
+      `${CONFIG_FILE} doesn't say where narration may be sent, so nothing was sent: ${toVoice.join(", ")} ` +
+        `would go to "${provider}" (chosen by ${chosenBy}).\n` +
+        `List the voice providers this project may use in ${join(ROOT, CONFIG_FILE)}, e.g. "providers": ["${provider}"]. ` +
+        `Known providers: ${Object.keys(VOICES).join(", ")}; ${[...LOCAL].join(", ")} runs on this machine and is allowed without it.`,
+    );
+  }
+  if (allowed.includes(provider)) return;
   throw new Error(
     `provider "${provider}" (chosen by ${chosenBy}) isn't allowed in this project: ${CONFIG_FILE} allows ` +
       `${allowed.length ? allowed.join(", ") : "none"}, and ${toVoice.join(", ")} would be sent to it.\n` +

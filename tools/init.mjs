@@ -21,9 +21,11 @@ function create(name, content) {
   created.push(name);
 }
 
+// `providers` names where narration may be sent (narrate sends nothing until it's set): the default
+// voice's provider, so a new project can narrate, and anyone reading the config sees where it goes.
 create(
   "lyceum.config.json",
-  JSON.stringify({ videos: "videos", cache: ".cache", project: "project.md", pronounce: {}, allowSpoken: [] }, null, 2) + "\n",
+  JSON.stringify({ videos: "videos", cache: ".cache", project: "project.md", providers: ["openai"], pronounce: {}, allowSpoken: [] }, null, 2) + "\n",
 );
 
 create(
@@ -144,4 +146,5 @@ Next:
   npm install                       installs Lyceum
   npx lyceum skill link             gives your coding agent the skill that drives the workflow
   edit project.md                   audience, ground truth, house rules
+  check lyceum.config.json          "providers" lists where narration may be sent (OpenAI to start)
   npx lyceum new <slug> "<Title>"   then ask your agent to write the script`);

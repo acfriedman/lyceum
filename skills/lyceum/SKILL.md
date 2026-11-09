@@ -123,7 +123,7 @@ wait. They may waive review ("I trust your script"). Respect that, but still sho
 ### 4. Narrate
 
 ```bash
-npx lyceum narrate <slug>                         # the project's voice (lyceum init sets it)
+npx lyceum narrate <slug>                         # the project's voice (lyceum init sets it), else say
 npx lyceum narrate <slug> --provider say          # free macOS voice; nothing leaves the machine
 npx lyceum narrate <slug> --provider openai       # OpenAI gpt-4o-mini-tts, voice "cedar"
 npx lyceum narrate <slug> --provider gemini       # Google gemini-3.8-flash-tts, voice "Charon"
@@ -138,8 +138,10 @@ This writes `narration.json` (durations, word timings, timeline) and `captions.s
   project's own `.env`. Lyceum never reads a `.env` above the project. If a key is missing, tell the
   user; don't go looking for one elsewhere on the machine.
 - **Voice:** a script can pin a voice in frontmatter: `voice: { provider: gemini }`, or
-  `{ id: marin, instructions: … }` for another OpenAI voice. A voice's `instructions` direct its delivery
-  and are never spoken: Gemini takes them as a separate style and reads the narration verbatim.
+  `{ provider: openai, id: marin, instructions: … }` for another OpenAI voice. With nothing named
+  (no `--provider`, script or project voice), narration uses `say`; a voice without a `provider` is
+  `say`'s too. A voice's `instructions` direct its delivery and are never spoken: Gemini takes them as a
+  separate style and reads the narration verbatim.
 - **Allowed providers:** `providers` in `lyceum.config.json` lists the only providers a project's
   narration can go to. Until it's set, narrate sends nothing to a hosted voice (only the local `say`
   runs). If narrate refuses a provider, use an allowed one. Setting the list, or adding a provider to it,

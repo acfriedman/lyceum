@@ -74,7 +74,8 @@ path into your `node_modules`, so gitignore it. Each contributor runs the comman
 `lyceum init` asks which voice narrates the project: macOS's `say`, the default, which is free and sends
 nothing anywhere, or OpenAI or Gemini, which need a key. Your choice is written to `lyceum.config.json`
 as the project's `voice`, and as the only entry in `providers`, the list of services narration may be sent
-to. `narrate` refuses any other provider until you add it there.
+to. `narrate` refuses any other provider until you add it there. A project that names no voice narrates
+with `say`.
 
 `narrate` reads keys from the environment, or else from the project's own `.env`, the one beside
 `lyceum.config.json`. It never reads a `.env` above the project, so an app's `.env` or one in your home

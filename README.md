@@ -34,9 +34,9 @@ code and systems. Nothing in it is specific to code, though.
 - **Disk space for a headless Chrome,** which the first render downloads (about 95 MB, 190 MB unpacked):
   Google's Chrome for Testing, pinned, once per machine, into Lyceum's cache directory.
 - **A voice:**
-  - an OpenAI API key (default voice, about $0.15 per 10-minute video); or
-  - a Gemini API key (Google's Gemini text-to-speech); or
-  - macOS `say`, free, for drafts.
+  - macOS `say`, the default: free, and nothing leaves your machine; or
+  - an OpenAI API key (about $0.15 per 10-minute video); or
+  - a Gemini API key (Google's Gemini text-to-speech).
 - **[uv](https://docs.astral.sh/uv/)** for word timings: Lyceum aligns the narration with local Whisper,
   mlx-whisper on Apple Silicon and faster-whisper (on the CPU) anywhere else, such as Linux CI.
 - **A coding agent** that reads [Agent Skills](https://agentskills.io): Claude Code, Codex CLI, Gemini
@@ -91,7 +91,7 @@ lyceum/
 | `videos` | `"videos"` | where the videos live |
 | `cache` | `".cache"` | where regenerable files go |
 | `project` | `"project.md"` | the project guide the agent reads first (older projects: `brief`) |
-| `voice` | OpenAI `cedar` (`lyceum init` writes the voice you choose, `say` unless you pick another) | default voice, e.g. `{ "provider": "gemini" }` or `{ "id": "marin" }` |
+| `voice` | `say` (`lyceum init` writes the voice you choose) | default voice, e.g. `{ "provider": "gemini" }` or `{ "provider": "openai", "id": "marin" }`; a voice without a `provider` is `say`'s |
 | `voices` | `{}` | per provider, overrides of its voice wherever it's used, e.g. a pinned model: `{ "openai": { "model": "gpt-4o-mini-tts-2025-12-15" } }` |
 | `providers` | none (`lyceum init` writes the voice you choose, `["say"]` unless you pick another) | the only voice providers narration may be sent to, e.g. `["openai", "say"]`. Until it's set, `narrate` sends nothing to a hosted voice (the local `say` still runs). Clips already cached are reused whatever their provider |
 | `whisper` | mlx-whisper 0.4.3 on Apple Silicon, faster-whisper 1.2.1 elsewhere; both run `whisper-large-v3-turbo` at a fixed revision | the Whisper that times the words: `{ "backend": "mlx" \| "faster-whisper", "mlx": { "version", "model", "revision" }, "faster-whisper": { … } }`; `LYCEUM_ALIGNER` picks the backend for one run |

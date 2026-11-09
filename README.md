@@ -32,7 +32,8 @@ code and systems. Nothing in it is specific to code, though.
 
 - **Node 20+** and **ffmpeg** (with `ffprobe`) on your path.
 - **Disk space for a headless Chrome,** which the first render downloads (about 95 MB, 190 MB unpacked):
-  Google's Chrome for Testing, pinned, once per machine, into Lyceum's cache directory.
+  Google's Chrome for Testing, pinned, once per machine, into Lyceum's cache directory. The download is
+  checked against the build's known SHA-256, and refused if it doesn't match.
 - **A voice:**
   - macOS `say`, the default: free, and nothing leaves your machine; or
   - an OpenAI API key (about $0.15 per 10-minute video); or

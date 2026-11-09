@@ -38,7 +38,8 @@ code and systems. Nothing in it is specific to code, though.
   - a Gemini API key (Google's Gemini text-to-speech); or
   - macOS `say`, free, for drafts.
 - **[uv](https://docs.astral.sh/uv/)** for word timings: Lyceum aligns the narration with local Whisper,
-  mlx-whisper on Apple Silicon and faster-whisper (on the CPU) anywhere else, such as Linux CI.
+  mlx-whisper on Apple Silicon and faster-whisper (on the CPU) anywhere else, such as Linux CI. Its
+  Python packages install from a lockfile with hashes, so every machine gets the same ones.
 - **A coding agent** that reads [Agent Skills](https://agentskills.io): Claude Code, Codex CLI, Gemini
   CLI, Cursor, GitHub Copilot and others.
 

@@ -19,14 +19,16 @@ tools/              one file per command, plus paths.mjs (the layout, described 
                     published videos), coverage.mjs (which files must have a video, and the block that
                     shows one in its file), env.mjs (secrets from the environment or .env), ci.mjs with
                     ci-workflow.yml (unattended refreshes from GitHub Actions), align.py (Whisper word
-                    alignment) and chrome.mjs (the renderer: the kit's page, bundled with esbuild and
+                    alignment) with aligners.mjs and aligners/ (the Whisper pins, and each backend's
+                    lockfile) and chrome.mjs (the renderer: the kit's page, bundled with esbuild and
                     drawn frame by frame in headless Chrome)
 kit/                what scenes import as "#kit": timing (cue.tsx), the frame clock, primitives, theme
                     and the stage, plus the page the renderer draws them in (page.tsx)
 fonts/              CMU Serif and JetBrains Mono (SIL Open Font License)
 skills/lyceum/      the agent skill (Agent Skills format: SKILL.md + references/)
 .claude-plugin/     packages the skill as a Claude Code plugin and marketplace
-scripts/            maintainer scripts, not shipped: sync-version.mjs (run by `npm version`)
+scripts/            maintainer scripts, not shipped: sync-version.mjs (run by `npm version`) and
+                    lock-aligners.mjs (the aligners' Python lockfiles)
 .github/workflows/  release.yml: a pushed vX.Y.Z tag becomes a GitHub Release
 explainers/         a Lyceum project of videos about Lyceum, made with this checkout (`file:..`): the
                     README's video. Not part of the published package
@@ -48,10 +50,13 @@ explainers/         a Lyceum project of videos about Lyceum, made with this chec
 
 - **Keep the narration cache stable.** Clips are cached by a hash of the voice object and the spoken text.
   Changing a default voice's fields, or their key order, re-bills every project's narration.
-- **The Whisper pins:** `ALIGNERS` in `tools/narrate.mjs` pins each backend's release and model revision
+- **The Whisper pins:** `ALIGNERS` in `tools/aligners.mjs` pins each backend's release and model revision
   (mlx-whisper on Apple Silicon, faster-whisper on any CPU), and a project can override either under
-  `whisper`. Each release gets its own venv in the Lyceum home directory. Changing a pin, or the
-  backend, doesn't re-align clips already cached, only new ones. The two backends agree on word times to
+  `whisper`. Each backend's whole dependency tree is locked, with hashes, in `tools/aligners/<backend>.txt`,
+  and its venv is installed from that alone. Regenerate the lockfile in the same change as a pin
+  (`node scripts/lock-aligners.mjs`): narrate refuses one that doesn't pin what `ALIGNERS` does. Each
+  release gets its own venv in the Lyceum home directory. Changing a pin, or the backend, doesn't re-align
+  clips already cached, only new ones. The two backends agree on word times to
   within a frame (at 30 fps) for all but a clip's first word after leading silence.
 - **Render fingerprints:** they include every kit file and the pinned Chrome build (`CHROME_BUILD` in
   `tools/chrome.mjs`). Changing either re-renders every scene of every project once. That's correct, but

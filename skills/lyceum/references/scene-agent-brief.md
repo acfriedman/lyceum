@@ -36,6 +36,9 @@ Other agents are building the other scenes at the same time.
 - **Edit only your own scene file.** Don't touch `shared.tsx`, `scenes/index.ts`, `script.md`,
   `narration.json`, or anything in the Lyceum package.
 - If you need a helper, define it in your own file.
+- **No network.** A scene can't load anything from the internet (images, fonts, fetches, sockets): the
+  renderer refuses every request that isn't to its own local server, and fails with the URL. Draw it
+  with the kit, or inline it (an SVG in JSX, a `data:` URL).
 - Never run `lyceum narrate`: it bills a paid voice API.
 - Never render video.
 

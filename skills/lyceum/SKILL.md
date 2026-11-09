@@ -314,6 +314,9 @@ A changed file doesn't mean a wrong video, and most diffs won't affect it. To re
     punctuation, so a repeated word needs `{ after }`.
   - A phrase missing from the narration throws, so a script edit can't silently desync a scene.
 - **Imports:** scenes import everything from `"#kit"`, never from kit files by path.
+- **No network:** the renderer serves a scene its bundle and the kit's fonts, and fails on any other
+  request (an image, font, fetch or socket from the internet, or another port on this machine), naming
+  the scene and the URL. Draw with the kit, or inline the asset (an SVG in JSX, a `data:` URL).
 - **Primitives:**
   - `Text` (manim-style write-on), `Fade`;
   - `Code`, with `codePoint` for placing things against columns, highlights, dim and strike;

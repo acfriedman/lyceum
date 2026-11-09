@@ -23,7 +23,7 @@ The trade the user made: the videos go out unreviewed, so you are the only revie
 - **Review yourself.** Step 7 is not optional: look at every scene's contact sheet, fix what's wrong,
   and look again. Check the title card too (`stills <slug> _title`).
 - **Never change the project's settings:** not the config, voice pins, providers, Whisper or the kit.
-  Use the default voice. If narration fails ("still missing words" after retries), stop: don't switch
+  Use the project's voice: don't pass `--provider`. If narration fails ("still missing words" after retries), stop: don't switch
   providers.
 - **Stay inside the project.** Edit only the project's files. The one exception is the block
   `lyceum embed` writes into the explained file. Don't commit or push: whatever ran you does that.

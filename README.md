@@ -34,9 +34,9 @@ code and systems. Nothing in it is specific to code, though.
 - **Disk space for a headless Chrome,** which the first render downloads (about 95 MB, 190 MB unpacked):
   Google's Chrome for Testing, pinned, once per machine, into Lyceum's cache directory.
 - **A voice:**
-  - an OpenAI API key (default voice, about $0.15 per 10-minute video); or
-  - a Gemini API key (Google's Gemini text-to-speech); or
-  - macOS `say`, free, for drafts.
+  - macOS `say`, the default: free, and nothing leaves your machine; or
+  - an OpenAI API key (about $0.15 per 10-minute video); or
+  - a Gemini API key (Google's Gemini text-to-speech).
 - **[uv](https://docs.astral.sh/uv/)** for word timings: Lyceum aligns the narration with local Whisper,
   mlx-whisper on Apple Silicon and faster-whisper (on the CPU) anywhere else, such as Linux CI. Its
   Python packages install from a lockfile with hashes, so every machine gets the same ones.
@@ -52,6 +52,9 @@ npx github:acfriedman/lyceum init lyceum   # creates lyceum/ as a Lyceum project
 cd lyceum && npm install
 npx lyceum skill link                       # gives your coding agent the Lyceum skill
 ```
+
+`init` asks which voice narrates the project's videos: macOS's `say` (the default: free, and nothing
+leaves your machine), OpenAI or Gemini. `--provider <name>` answers it up front.
 
 Then ask your agent for a video: "make a 5-minute explainer on how our cache invalidation works." It's
 happy to walk you through the rest, from `project.md` to your voice key.
@@ -89,9 +92,9 @@ lyceum/
 | `videos` | `"videos"` | where the videos live |
 | `cache` | `".cache"` | where regenerable files go |
 | `project` | `"project.md"` | the project guide the agent reads first (older projects: `brief`) |
-| `voice` | OpenAI `cedar` | default voice, e.g. `{ "provider": "gemini" }` or `{ "id": "marin" }` |
+| `voice` | `say` (`lyceum init` writes the voice you choose) | default voice, e.g. `{ "provider": "gemini" }` or `{ "provider": "openai", "id": "marin" }`; a voice without a `provider` is `say`'s |
 | `voices` | `{}` | per provider, overrides of its voice wherever it's used, e.g. a pinned model: `{ "openai": { "model": "gpt-4o-mini-tts-2025-12-15" } }` |
-| `providers` | any | the only voice providers narration may be sent to, e.g. `["openai", "say"]`; clips already cached are reused whatever their provider |
+| `providers` | none (`lyceum init` writes the voice you choose, `["say"]` unless you pick another) | the only voice providers narration may be sent to, e.g. `["openai", "say"]`. Until it's set, `narrate` sends nothing to a hosted voice (the local `say` still runs). Clips already cached are reused whatever their provider |
 | `whisper` | mlx-whisper 0.4.3 on Apple Silicon, faster-whisper 1.2.1 elsewhere; both run `whisper-large-v3-turbo` at a fixed revision | the Whisper that times the words: `{ "backend": "mlx" \| "faster-whisper", "mlx": { "version", "model", "revision" }, "faster-whisper": { … } }`; `LYCEUM_ALIGNER` picks the backend for one run |
 | `store` | none | an S3-compatible bucket (e.g. Cloudflare R2) that shares voiced clips and rendered scenes between machines, CI included, and holds what `lyceum publish` puts out: `{ "endpoint", "bucket", "public", "region", "prefix" }`. Credentials come from `LYCEUM_STORE_ACCESS_KEY_ID` and `LYCEUM_STORE_SECRET_ACCESS_KEY` |
 | `coverage` | none | which tracked files must each have a video, from the repository's root: `{ "explains": "**/README.md", "exclude": ["Tests/**"] }`. A script names its file under `explains:`. `lyceum stale` lists files with no video and videos whose file is gone, and `lyceum embed` shows a video in its file as a thumbnail |

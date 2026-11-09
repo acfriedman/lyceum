@@ -49,10 +49,12 @@ export function findProject(from = process.env.LYCEUM_PROJECT ?? process.cwd()) 
  *   cache        the regenerable cache directory (default ".cache")
  *   project      the project's guide, a markdown file the agent skill reads first: audience, ground
  *                truth, house rules, review and delivery (read from `brief` in older projects)
- *   voice        the default narration voice, as a script's `voice:` frontmatter would set it
+ *   voice        the default narration voice, as a script's `voice:` frontmatter would set it (unset: say;
+ *                `lyceum init` writes the voice chosen there)
  *   voices       per provider, overrides of its default voice (e.g. a pinned model), however the
  *                provider is chosen
- *   providers    the only voice providers narration may be sent to (unset: any)
+ *   providers    the only voice providers narration may be sent to (unset: none but the local `say`).
+ *                `lyceum init` writes the voice chosen there, say unless another is picked
  *   whisper      the Whisper that aligns narration: { backend, mlx: { version, model, revision },
  *                "faster-whisper": { … } } (see ALIGNERS in aligners.mjs)
  *   store        an S3-compatible bucket for caches and published videos (see store.mjs)

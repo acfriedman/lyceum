@@ -59,13 +59,15 @@ export function findProject(from = process.env.LYCEUM_PROJECT ?? process.cwd()) 
  *   coverage     which repository files must each have a video: { explains, exclude } (see coverage.mjs)
  *   pronounce    written form → spoken form, for every script (a script's own map wins)
  *   allowSpoken  words the acronym check lets through, for every script
+ *   allowSensitive  exact strings the sensitive-string check lets through (emails, phone numbers,
+ *                credentials: see sensitive.mjs). Only here, never in a script, and only the user adds them
  *   captions     "track" (a subtitle track viewers turn on) or "burned" (drawn into the picture), for
  *                every video (a script's own `captions:` wins)
  *   theme        the kit theme every video is drawn in: "dark" or "paper" (a script's own `theme:` wins)
  */
 export function loadConfig(root) {
   const raw = JSON.parse(readFileSync(join(root, CONFIG_FILE), "utf8"));
-  const config = { videos: "videos", cache: ".cache", voices: {}, whisper: {}, pronounce: {}, allowSpoken: [], captions: "track", theme: "dark", ...raw };
+  const config = { videos: "videos", cache: ".cache", voices: {}, whisper: {}, pronounce: {}, allowSpoken: [], allowSensitive: [], captions: "track", theme: "dark", ...raw };
   config.project ??= raw.brief ?? "project.md";
   return config;
 }

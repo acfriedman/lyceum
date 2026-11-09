@@ -102,6 +102,15 @@ What makes a script work:
   - `narrate` refuses narration with an all-caps acronym (other than the everyday ones) or a known
     shortening (op, impl, config, repo, func, param, arg, env, dep, init, …). Fix the script.
     `allow_spoken:` in the frontmatter, or `allowSpoken` in the config, is for deliberate exceptions only.
+- **No emails, phone numbers or credentials in narration,** written or spoken ("name at example dot com",
+  a number read out digit by digit). Source material can hold them; the narration never should.
+  `narrate` refuses any it finds before anything is sent, with the scene and the match. Take it out of
+  the script. If the user wants one said, the exception is theirs to make: exact strings under
+  `allowSensitive` in `lyceum.config.json`. **Never add to or edit that list yourself:** ask the user. A
+  script's frontmatter can't hold exceptions.
+  - A false alarm, such as a website read out ("more at docs dot python dot org" sounds like an
+    address), may be reworded so it no longer reads like one: "the Python docs, on docs dot python dot
+    org". Never disguise a real address, number or key to get it past the check.
 - **Round long numbers in narration.** Speech-to-text writes "5,248" as digits, and the aligner can't
   match a spelled-out "five thousand two hundred and forty-eight". Say "just over five thousand" and put
   the exact figure on screen. Short numbers are fine on their own, but not run straight into another number.

@@ -22,7 +22,8 @@ The trade the user made: the videos go out unreviewed, so you are the only revie
   about 1–2 minutes in 3–4 scenes; a repository's main README about 3–5 minutes. Don't pad.
 - **Review yourself.** Step 7 is not optional: look at every scene's contact sheet, fix what's wrong,
   and look again. Check the title card too (`stills <slug> _title`).
-- **Never change the project's settings:** not the config, voice pins, providers, Whisper or the kit.
+- **Never change the project's settings:** not the config (least of all `allowSensitive`), voice pins,
+  providers, Whisper or the kit. If narrate refuses a sensitive string, take it out of the script.
   Use the default voice. If narration fails ("still missing words" after retries), stop: don't switch
   providers.
 - **Stay inside the project.** Edit only the project's files. The one exception is the block

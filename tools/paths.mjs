@@ -55,6 +55,7 @@ export function findProject(from = process.env.LYCEUM_PROJECT ?? process.cwd()) 
  *   providers    the only voice providers narration may be sent to (unset: any)
  *   whisper      the Whisper that aligns narration: { backend, mlx: { version, model, revision },
  *                "faster-whisper": { … } } (see ALIGNERS in narrate.mjs)
+ *   store        an S3-compatible bucket for caches and published videos (see store.mjs)
  *   pronounce    written form → spoken form, for every script (a script's own map wins)
  *   allowSpoken  words the acronym check lets through, for every script
  *   captions     "track" (a subtitle track viewers turn on) or "burned" (drawn into the picture), for

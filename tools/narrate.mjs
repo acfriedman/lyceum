@@ -22,6 +22,8 @@
 import { createHash } from "node:crypto";
 import { execFile, execFileSync, spawnSync } from "node:child_process";
 import { withSlot } from "./slots.mjs";
+import { secret } from "./env.mjs";
+import { fetchNarration, pushNarration } from "./store.mjs";
 import { promisify } from "node:util";
 import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -128,20 +130,6 @@ function parseArgs(argv) {
     process.exit(2);
   }
   return args;
-}
-
-/** A secret from the environment, or from the nearest .env walking up from the project. */
-function secret(...names) {
-  for (const name of names) if (process.env[name]) return process.env[name];
-  for (let dir = ROOT; dir !== dirname(dir); dir = dirname(dir)) {
-    const env = join(dir, ".env");
-    if (!existsSync(env)) continue;
-    for (const name of names) {
-      const match = readFileSync(env, "utf8").match(new RegExp(`^${name}=(.+)$`, "m"));
-      if (match) return match[1].trim().replace(/^["']|["']$/g, "");
-    }
-  }
-  throw new Error(`${names.join(" / ")} is not set, and no .env at or above ${ROOT} defines it`);
 }
 
 // The Whisper that aligns narration, pinned like the renderer's Chrome: per backend, the package's
@@ -443,14 +431,26 @@ async function main() {
 
   // Lint every scene that would be newly voiced (cached scenes were already accepted), and check
   // that its provider is allowed, before anything is sent.
+  const clipHash = (text) => createHash("sha256").update(JSON.stringify({ provider, voice, text })).digest("hex").slice(0, 16);
+  const cached = (hash) => existsSync(join(CACHE, `${hash}.mp3`)) && existsSync(join(CACHE, `${hash}.json`));
+
+  // A clip voiced on another machine (or in CI) comes from the project's store, when it has one.
+  const fetched = new Set();
+  await Promise.all(
+    scenes.map(async (scene) => {
+      if (args.only && args.only !== scene.id) return;
+      const hash = clipHash(spokenText(scene.narration, meta.pronounce));
+      if (!cached(hash) && (await fetchNarration(hash, -LOUDNESS.lufs))) fetched.add(scene.id);
+    }),
+  );
+
   const allowed = new Set(meta.allow_spoken ?? []);
   const problems = [];
   const toVoice = [];
   for (const scene of scenes) {
     if (args.only && args.only !== scene.id) continue;
     const text = spokenText(scene.narration, meta.pronounce);
-    const hash = createHash("sha256").update(JSON.stringify({ provider, voice, text })).digest("hex").slice(0, 16);
-    if (existsSync(join(CACHE, `${hash}.mp3`)) && existsSync(join(CACHE, `${hash}.json`))) continue;
+    if (cached(clipHash(text))) continue;
     toVoice.push(scene.id);
     const found = shortenings(text, allowed);
     if (found.length) problems.push(`  ${scene.id}: ${found.join(", ")}`);
@@ -468,12 +468,12 @@ async function main() {
   const out = await Promise.all(
     scenes.map(async (scene) => {
       const text = spokenText(scene.narration, meta.pronounce);
-      const shape = { provider, voice, text };
-      const hash = createHash("sha256").update(JSON.stringify(shape)).digest("hex").slice(0, 16);
+      const hash = clipHash(text);
       const cachedMp3 = join(CACHE, `${hash}.mp3`);
       const cachedWords = join(CACHE, `${hash}.json`);
 
       const skip = args.only && args.only !== scene.id;
+      let voiced = false;
       if (!existsSync(cachedMp3) || !existsSync(cachedWords)) {
         if (skip) {
           const kept = previous?.scenes.find((s) => s.id === scene.id);
@@ -483,15 +483,18 @@ async function main() {
         console.log(`  narrating ${scene.id} (${text.length} chars, ${provider})…`);
         const words = await SYNTHESIZE[provider](text, voice, cachedMp3, scene.id);
         writeFileSync(cachedWords, JSON.stringify(words));
+        voiced = true;
         console.log(`  done      ${scene.id}`);
       } else {
-        console.log(`  cached    ${scene.id}`);
+        console.log(`  ${fetched.has(scene.id) ? "fetched" : "cached "}   ${scene.id}`);
       }
 
       // Every provider's clip is brought to LOUDNESS beside the cached one, so the level can change
       // without voicing anything again.
       const leveled = join(CACHE, `${hash}.lufs${-LOUDNESS.lufs}.mp3`);
       if (!existsSync(leveled)) normalizeLoudness(cachedMp3, leveled);
+      // The leveled clip goes up too: its duration sets the timeline, so every machine must play the same one.
+      if (voiced) await pushNarration(hash);
       const audio = `${video}/${scene.id}.mp3`;
       copyFileSync(leveled, join(publicRoot, audio));
       return {

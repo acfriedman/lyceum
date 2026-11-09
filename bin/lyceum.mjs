@@ -14,6 +14,8 @@ const COMMANDS = {
   scenes: ["scenes.mjs", "scaffold scene files and per-scene briefs from the narration: <video>"],
   stills: ["stills.mjs", "a contact sheet of one scene: <video> <scene> [--at <s1,s2,…> | --every <s>]"],
   render: ["render.mjs", "render a video (or one scene): <video> [--scene <id> [--draft]]"],
+  publish: ["publish.mjs", "put a rendered video, its thumbnail and a player page in the project's store: <video>"],
+  store: ["store.mjs", "seed the project's store with a video's narration and scene clips: push <video>…"],
   stale: ["stale.mjs", "which videos' sources changed since they were checked: [<video>…] [--json] | --mark <video>…"],
   typecheck: ["typecheck.mjs", "type-check the project's scenes"],
   version: ["version-check.mjs", "this Lyceum's version, and whether a newer release is out: [--hook]"],

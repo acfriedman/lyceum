@@ -144,27 +144,51 @@ function secret(...names) {
   throw new Error(`${names.join(" / ")} is not set, and no .env at or above ${ROOT} defines it`);
 }
 
-// The Whisper that aligns narration, pinned like the renderer's Chrome: the mlx-whisper release and the
-// model's revision. A project can pin others under `whisper` in lyceum.config.json. Each release gets
-// its own venv and each revision its own download, so changing a pin never reuses the old one. Clips
-// already cached keep the word timings they were accepted with.
-const WHISPER = {
-  version: "0.4.3",
-  model: "mlx-community/whisper-large-v3-turbo",
-  revision: "a4aaeec0636e6fef84abdcbe3544cb2bf7e9f6fb",
-  ...CONFIG.whisper,
+// The Whisper that aligns narration, pinned like the renderer's Chrome: per backend, the package's
+// release and the model's revision. mlx-whisper needs Apple Silicon's GPU; faster-whisper runs on any
+// CPU, so CI on Linux (or on a Mac runner without Metal) can narrate. Both run the same model,
+// whisper-large-v3-turbo, and align.py matches either transcript to the script the same way.
+//
+// The backend is LYCEUM_ALIGNER, else `whisper.backend` in lyceum.config.json, else mlx on Apple
+// Silicon and faster-whisper elsewhere. A project can pin either under `whisper.mlx` or
+// `whisper["faster-whisper"]` (a flat `whisper: { version, model, revision }` still pins mlx). Each
+// release gets its own venv and each revision its own download, so changing a pin never reuses the old
+// one. The clip cache's key leaves the aligner out: clips already cached keep the word timings they were
+// accepted with, whichever backend timed them.
+const ALIGNERS = {
+  mlx: {
+    package: "mlx-whisper",
+    version: "0.4.3",
+    model: "mlx-community/whisper-large-v3-turbo",
+    revision: "a4aaeec0636e6fef84abdcbe3544cb2bf7e9f6fb",
+  },
+  "faster-whisper": {
+    package: "faster-whisper",
+    version: "1.2.1",
+    requires: ["ctranslate2==4.8.5"], // the inference engine: its numerics shape the timings
+    model: "dropbox-dash/faster-whisper-large-v3-turbo",
+    revision: "0a363e9161cbc7ed1431c9597a8ceaf0c4f78fcf",
+  },
 };
+const ALIGNER = process.env.LYCEUM_ALIGNER || CONFIG.whisper?.backend || (process.platform === "darwin" && process.arch === "arm64" ? "mlx" : "faster-whisper");
+if (!ALIGNERS[ALIGNER]) throw new Error(`unknown aligner "${ALIGNER}": use ${Object.keys(ALIGNERS).join(" or ")}`);
+const WHISPER = (() => {
+  const { backend, mlx, "faster-whisper": faster, ...flat } = CONFIG.whisper ?? {};
+  return { ...ALIGNERS[ALIGNER], ...(ALIGNER === "mlx" ? { ...flat, ...mlx } : faster) };
+})();
 const ALIGN_PY = join(dirname(fileURLToPath(import.meta.url)), "align.py");
 
-/** The Python that runs align.py: a venv with the pinned mlx-whisper, created with uv on first use. */
+/** The Python that runs align.py: a venv with the pinned aligner, created with uv on first use. */
 function alignerPython() {
-  const venv = join(HOME, `whisper-${WHISPER.version}`);
+  // mlx keeps its original venv name, so existing machines reuse theirs.
+  const venv = join(HOME, ALIGNER === "mlx" ? `whisper-${WHISPER.version}` : `${WHISPER.package}-${WHISPER.version}`);
   const installed = join(venv, ".installed"); // written last, so an interrupted install is redone
-  if (!existsSync(installed)) {
-    console.log(`  creating ${venv} (mlx-whisper ${WHISPER.version}) for word alignment…`);
+  const specs = [`${WHISPER.package}==${WHISPER.version}`, ...(WHISPER.requires ?? [])];
+  if (!existsSync(installed) || readFileSync(installed, "utf8") !== `${specs.join("\n")}\n`) {
+    console.log(`  creating ${venv} (${specs.join(", ")}) for word alignment…`);
     execFileSync("uv", ["venv", "-q", "--clear", "--python", "3.12", venv], { stdio: "inherit" });
-    execFileSync("uv", ["pip", "install", "-q", `mlx-whisper==${WHISPER.version}`], { stdio: "inherit", env: { ...process.env, VIRTUAL_ENV: venv } });
-    writeFileSync(installed, `mlx-whisper==${WHISPER.version}\n`);
+    execFileSync("uv", ["pip", "install", "-q", ...specs], { stdio: "inherit", env: { ...process.env, VIRTUAL_ENV: venv } });
+    writeFileSync(installed, `${specs.join("\n")}\n`);
   }
   return join(venv, "bin", "python");
 }
@@ -191,7 +215,7 @@ async function align(text, audioPath, sentinel) {
   const textPath = audioPath.replace(/\.\w+$/, ".txt");
   writeFileSync(textPath, text);
   const { stdout } = await whisperSlot(() =>
-    promisify(execFile)(alignerPython(), [ALIGN_PY, audioPath, textPath, whisperModel(), ...(sentinel ? [sentinel] : [])], {
+    promisify(execFile)(alignerPython(), [ALIGN_PY, "--backend", ALIGNER, audioPath, textPath, whisperModel(), ...(sentinel ? [sentinel] : [])], {
       maxBuffer: 16 * 1024 * 1024,
     }),
   );
@@ -440,7 +464,7 @@ async function main() {
   checkProviderAllowed(provider, providerChoice(args.provider, scripted.voice, video), toVoice);
 
   // Every scene that needs voicing is voiced at once; each scene's paragraphs run concurrently too.
-  whisperModel(); // create the venv and fetch the model once, before any parallel use
+  if (toVoice.length) whisperModel(); // create the venv and fetch the model once, before any parallel use
   const out = await Promise.all(
     scenes.map(async (scene) => {
       const text = spokenText(scene.narration, meta.pronounce);

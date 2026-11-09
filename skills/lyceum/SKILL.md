@@ -33,6 +33,10 @@ plus `pronounce` and `allowSpoken` entries that apply to every script.
 Commands: `npx lyceum <command>`. Projects created by `lyceum init` also have the same commands as npm
 scripts (`npm run narrate -- <slug>`).
 
+**Running unattended?** If nobody will review your work (CI, a scheduled job, `LYCEUM_UNATTENDED` set,
+or a user who says they won't review), read `references/unattended.md` first. It removes the review
+gates and says how to finish each video.
+
 If a command (or a session-start hook) prints that a newer Lyceum release is available (a line starting
 🎁), tell the user once, in a sentence that starts with 🎁, with the command it gives and the link to what
 changed. Don't update unless they ask: a new release can change how every video renders.
@@ -145,8 +149,8 @@ Why the OpenAI and Gemini paths are more involved:
   - appends a sentinel ("Okay.") and cuts the audio before it;
   - checks each paragraph against the script, and retries.
 - **No word timings:** neither voice reports when each word is spoken, so Lyceum transcribes each clip
-  with local Whisper and matches it to the script character by character. That's mlx-whisper, so Apple
-  Silicon only; its venv is created on first use.
+  with local Whisper and matches it to the script character by character: mlx-whisper on Apple Silicon,
+  faster-whisper on the CPU anywhere else. Its venv is created on first use.
 
 A "paragraph N still missing words" error after retries is a real failure: report it, and don't paper
 over it. Never switch providers silently.
@@ -279,6 +283,17 @@ npx lyceum stale --mark <slug>        # record that a video was checked at the c
 without one, since the last commit to touch the video). It exits 1 if any video is stale. Changes to a
 video's own directory don't count. It runs on committed history, so a shallow clone needs
 `git fetch --unshallow` first.
+
+A video that explains one file, such as a README, names it under `explains:`. That file is always
+watched, but edits inside its video block don't count. If the project sets `coverage`, `stale` also
+lists:
+- `missing`: a covered file with no video, under a suggested slug. Start one with
+  `npx lyceum new <slug> "<Title>" --explains <path>`.
+- `orphaned`: a video whose file is gone.
+
+With a store configured, `npx lyceum publish <slug>` puts a rendered video at its fixed URLs, and
+`npx lyceum embed <slug>` shows it in its file. `npx lyceum ship <slug>` does all of it, behind gates:
+it publishes only a video that `stale` finds current and that narrates, type-checks and renders cleanly.
 
 A changed file doesn't mean a wrong video, and most diffs won't affect it. To revise a stale video:
 1. Read the diffs and commit messages against what the narration and `> Visual:` briefs claim. A claim

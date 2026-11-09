@@ -17,10 +17,12 @@
 // The title card is stale when the title, the theme, the kit or the settings change. Rendering scenes as
 // they pass review means the final call only joins them. Each scene file carries its own audio, so it doubles as
 // a preview; the video's audio track is rebuilt from the narration clips, which is exact and keeps the
-// join a stream copy.
+// join a stream copy. With a store (see store.mjs), a stale scene is first looked up there by its
+// fingerprint, and every scene drawn here is uploaded, so each is drawn once for every machine.
 
 import { CHROME_BUILD, openScene } from "./chrome.mjs";
 import { holdSlot } from "./slots.mjs";
+import { fetchScene, pushScene } from "./store.mjs";
 import { createHash } from "node:crypto";
 import { execFileSync, spawn } from "node:child_process";
 import { once } from "node:events";
@@ -74,8 +76,15 @@ if (only && flag("draft")) {
       console.log(`  current   ${id}`);
       continue;
     }
+    // A clip drawn on another machine (or in CI) with the same fingerprint comes from the store.
+    if (await fetchScene(print, out)) {
+      writeFileSync(stamp, print + "\n");
+      console.log(`  fetched   ${id}`);
+      continue;
+    }
     await renderScene(id, out, 1);
     writeFileSync(stamp, print + "\n");
+    await pushScene(print, out);
   }
   if (only) console.log(`→ ${relative(ROOT, join(scenesOut, `${only}.mp4`))}`);
   else assemble();

@@ -15,8 +15,12 @@ bin/lyceum.mjs      the `lyceum` command: dispatches to tools/
 tools/              one file per command, plus paths.mjs (the layout, described once), slots.mjs
                     (machine-wide memory caps), script.mjs (script.md parsing), captions.mjs (SubRip),
                     video.mjs (a video as the renderer sees it: the title card, the scenes, its caption
-                    setting), align.py (Whisper word alignment) and chrome.mjs (the renderer: the kit's
-                    page, bundled with esbuild and drawn frame by frame in headless Chrome)
+                    setting), store.mjs (the project's bucket: clips by hash, scenes by fingerprint,
+                    published videos), coverage.mjs (which files must have a video, and the block that
+                    shows one in its file), env.mjs (secrets from the environment or .env), ci.mjs with
+                    ci-workflow.yml (unattended refreshes from GitHub Actions), align.py (Whisper word
+                    alignment) and chrome.mjs (the renderer: the kit's page, bundled with esbuild and
+                    drawn frame by frame in headless Chrome)
 kit/                what scenes import as "#kit": timing (cue.tsx), the frame clock, primitives, theme
                     and the stage, plus the page the renderer draws them in (page.tsx)
 fonts/              CMU Serif and JetBrains Mono (SIL Open Font License)
@@ -44,12 +48,17 @@ explainers/         a Lyceum project of videos about Lyceum, made with this chec
 
 - **Keep the narration cache stable.** Clips are cached by a hash of the voice object and the spoken text.
   Changing a default voice's fields, or their key order, re-bills every project's narration.
-- **The Whisper pin:** `WHISPER` in `tools/narrate.mjs` pins the mlx-whisper release and the model's
-  revision, and a project can override it under `whisper`. Each release gets its own venv in the Lyceum
-  home directory. Changing the pin doesn't re-align clips already cached, only new ones.
+- **The Whisper pins:** `ALIGNERS` in `tools/narrate.mjs` pins each backend's release and model revision
+  (mlx-whisper on Apple Silicon, faster-whisper on any CPU), and a project can override either under
+  `whisper`. Each release gets its own venv in the Lyceum home directory. Changing a pin, or the
+  backend, doesn't re-align clips already cached, only new ones. The two backends agree on word times to
+  within a frame (at 30 fps) for all but a clip's first word after leading silence.
 - **Render fingerprints:** they include every kit file and the pinned Chrome build (`CHROME_BUILD` in
   `tools/chrome.mjs`). Changing either re-renders every scene of every project once. That's correct, but
   say so in the commit.
+- **Store keys are content addresses.** A project's store files clips under narrate's hash and scenes
+  under render's fingerprint, so anything that changes either also misses every store. Nothing in the
+  normal flow deletes from a store.
 - **The page is part of every scene's look.** Scenes were laid out with every element border-box and
   Chrome drawing at the render's scale, and `tools/chrome.mjs` sets both. A change to the page, its CSS or
   Chrome's switches can move every scene by a pixel: compare a scene's contact sheet before and after

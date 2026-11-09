@@ -37,8 +37,8 @@ code and systems. Nothing in it is specific to code, though.
   - an OpenAI API key (default voice, about $0.15 per 10-minute video); or
   - a Gemini API key (Google's Gemini text-to-speech); or
   - macOS `say`, free, for drafts.
-- **Apple Silicon and [uv](https://docs.astral.sh/uv/)** for word timings: Lyceum aligns the narration
-  with local Whisper (mlx-whisper).
+- **[uv](https://docs.astral.sh/uv/)** for word timings: Lyceum aligns the narration with local Whisper,
+  mlx-whisper on Apple Silicon and faster-whisper (on the CPU) anywhere else, such as Linux CI.
 - **A coding agent** that reads [Agent Skills](https://agentskills.io): Claude Code, Codex CLI, Gemini
   CLI, Cursor, GitHub Copilot and others.
 
@@ -91,11 +91,29 @@ lyceum/
 | `voice` | OpenAI `cedar` | default voice, e.g. `{ "provider": "gemini" }` or `{ "id": "marin" }` |
 | `voices` | `{}` | per provider, overrides of its voice wherever it's used, e.g. a pinned model: `{ "openai": { "model": "gpt-4o-mini-tts-2025-12-15" } }` |
 | `providers` | any | the only voice providers narration may be sent to, e.g. `["openai", "say"]`; clips already cached are reused whatever their provider |
-| `whisper` | mlx-whisper 0.4.3, `whisper-large-v3-turbo` at a fixed revision | the Whisper that times the words: `{ "version", "model", "revision" }` |
+| `whisper` | mlx-whisper 0.4.3 on Apple Silicon, faster-whisper 1.2.1 elsewhere; both run `whisper-large-v3-turbo` at a fixed revision | the Whisper that times the words: `{ "backend": "mlx" \| "faster-whisper", "mlx": { "version", "model", "revision" }, "faster-whisper": { … } }`; `LYCEUM_ALIGNER` picks the backend for one run |
+| `store` | none | an S3-compatible bucket (e.g. Cloudflare R2) that shares voiced clips and rendered scenes between machines, CI included, and holds what `lyceum publish` puts out: `{ "endpoint", "bucket", "public", "region", "prefix" }`. Credentials come from `LYCEUM_STORE_ACCESS_KEY_ID` and `LYCEUM_STORE_SECRET_ACCESS_KEY` |
+| `coverage` | none | which tracked files must each have a video, from the repository's root: `{ "explains": "**/README.md", "exclude": ["Tests/**"] }`. A script names its file under `explains:`. `lyceum stale` lists files with no video and videos whose file is gone, and `lyceum embed` shows a video in its file as a thumbnail |
 | `pronounce` | `{}` | written → spoken, for every script (a script's own map wins) |
 | `allowSpoken` | `[]` | acronyms the narration check should allow |
 | `captions` | `"track"` | `"track"`: subtitles viewers turn on; `"burned"`: drawn into the picture (a script's `captions:` wins) |
 | `theme` | `"dark"` | `"dark"`: the dark canvas, for code explainers; `"paper"`: a light, formal look for presentations (a script's `theme:` wins) |
+
+## Videos that keep themselves current
+
+A video that explains a file, such as a README, can keep itself current, with no one reviewing it:
+1. Give the project a `store`, an S3-compatible bucket such as Cloudflare R2. Narration and rendered
+   scenes are shared through it, so CI never re-voices or redraws what hasn't changed, and published
+   videos live there at fixed URLs.
+2. Set `coverage`, e.g. every `README.md`.
+3. Run `npx lyceum ci init`. It writes a GitHub workflow for every push to main, weekly, and by hand.
+   It asks `lyceum stale` what needs work, and has Claude Code revise or make each video, unattended.
+   `lyceum ship` checks the result and publishes it, and the changes land as a pull request that
+   merges itself.
+
+Each file shows its video as a thumbnail (`lyceum embed`). A video that fails a check keeps the copy
+published before, and the run opens an issue. The workflow needs the store's keys, the voice's key and
+`CLAUDE_CODE_OAUTH_TOKEN` (from `claude setup-token`, on your Claude subscription) as Actions secrets.
 
 ## Licensing
 

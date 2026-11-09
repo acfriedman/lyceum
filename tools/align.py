@@ -1,11 +1,12 @@
 """Word timings for a narration clip whose voice doesn't report them.
 
-    python tools/align.py <audio> <text-file> <model-dir> [<sentinel>]
+    python tools/align.py [--backend mlx|faster-whisper] <audio> <text-file> <model-dir> [<sentinel>]
       →  JSON {"words": [{"w", "s", "e"}], "missing": [skipped script words], "tail": seconds | null}
     python tools/align.py --fetch <model-repo> <revision>
       →  the model's local directory, downloaded at that revision unless it's already cached
 
-Whisper transcribes the clip with word timestamps, and its transcript is matched back to the script
+Whisper transcribes the clip with word timestamps (mlx-whisper on Apple Silicon's GPU, the default, or
+faster-whisper on any CPU), and its transcript is matched back to the script
 character by character (letters and digits only), so every timing carries the script's spelling,
 which is what `cue()` searches. Matching characters rather than words survives Whisper splitting or
 merging words ("non-deterministic", "hand written"). A script word takes the span of the heard words
@@ -24,9 +25,9 @@ last sentence. It is aligned with the script, so it bounds the script's last wor
 import difflib
 import json
 import re
+import subprocess
 import sys
 
-import mlx_whisper
 from huggingface_hub import snapshot_download
 
 # A script word counts as heard when at least this share of its characters matched.
@@ -54,16 +55,42 @@ def fetch(repo: str, revision: str) -> str:
         return snapshot_download(repo, revision=revision)
 
 
+def transcribe(backend: str, audio: str, model_dir: str) -> list[dict]:
+    """The words Whisper heard in the clip, each {"word", "start", "end"}, in order."""
+    if backend == "faster-whisper":
+        import numpy as np
+        from faster_whisper import WhisperModel
+
+        # Decoded with ffmpeg, as mlx-whisper does, not faster-whisper's PyAV, whose API drifts.
+        pcm = subprocess.run(
+            ["ffmpeg", "-nostdin", "-loglevel", "error", "-i", audio, "-f", "f32le", "-ac", "1", "-ar", "16000", "-"],
+            check=True,
+            capture_output=True,
+        ).stdout
+        model = WhisperModel(model_dir, device="cpu", compute_type="int8")
+        segments, _ = model.transcribe(np.frombuffer(pcm, np.float32), language="en", word_timestamps=True, condition_on_previous_text=False, beam_size=1)
+        return [{"word": w.word, "start": w.start, "end": w.end} for seg in segments for w in seg.words or []]
+    if backend != "mlx":
+        raise SystemExit(f"unknown backend {backend!r}")
+    import mlx_whisper
+
+    result = mlx_whisper.transcribe(audio, path_or_hf_repo=model_dir, word_timestamps=True, language="en", condition_on_previous_text=False)
+    return [w for seg in result["segments"] for w in seg.get("words", [])]
+
+
 def main() -> None:
     if sys.argv[1] == "--fetch":
         print(fetch(sys.argv[2], sys.argv[3]))
         return
-    audio, text_path, model_dir = sys.argv[1], sys.argv[2], sys.argv[3]
+    args = sys.argv[1:]
+    backend = "mlx"
+    if args[0] == "--backend":
+        backend, args = args[1], args[2:]
+    audio, text_path, model_dir = args[0], args[1], args[2]
     spoken = open(text_path, encoding="utf-8").read().split()
-    sentinel = sys.argv[4].split() if len(sys.argv) > 4 else []
+    sentinel = args[3].split() if len(args) > 3 else []
     script = spoken + sentinel
-    result = mlx_whisper.transcribe(audio, path_or_hf_repo=model_dir, word_timestamps=True, language="en", condition_on_previous_text=False)
-    heard = [w for seg in result["segments"] for w in seg.get("words", [])]
+    heard = transcribe(backend, audio, model_dir)
     if not heard:
         raise SystemExit(f"{audio}: whisper heard no words")
 

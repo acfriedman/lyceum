@@ -15,6 +15,7 @@ const COMMANDS = {
   stills: ["stills.mjs", "a contact sheet of one scene: <video> <scene> [--at <s1,s2,…> | --every <s>]"],
   render: ["render.mjs", "render a video (or one scene): <video> [--scene <id> [--draft]]"],
   publish: ["publish.mjs", "put a rendered video, its thumbnail and a player page in the project's store: <video>"],
+  ship: ["ship.mjs", "build a verified video and publish it, stopping at the first failed gate: <video>"],
   embed: ["embed.mjs", "show a video in the file it explains (its explains:), as a thumbnail: <video>"],
   store: ["store.mjs", "seed the project's store with a video's narration and scene clips: push <video>…"],
   stale: ["stale.mjs", "which videos' sources changed since they were checked: [<video>…] [--json] | --mark <video>…"],

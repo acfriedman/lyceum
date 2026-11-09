@@ -37,6 +37,9 @@ The trade the user made: the videos go out unreviewed, so you are the only revie
   to step 7 (review).
 - **`stale`:** follow "Keep it current" in `SKILL.md`. Most diffs change nothing the video says; then
   marking it is the whole job.
+- **`unpublished`** (from `lyceum ci`): the video exists, but its current version never went out, because
+  an earlier run stopped partway. Treat its script and scenes as a draft: check the claims, review every
+  contact sheet (the earlier run may never have seen one), fix what's wrong, then finish.
 - **`orphaned`:** the file is gone. Delete the video's directory, and remove its two imports and its
   entry from `videos/index.ts`. Nothing else: its published copy stays where it is.
 

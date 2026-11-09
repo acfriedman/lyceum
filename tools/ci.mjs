@@ -15,20 +15,24 @@
 // command, run by the shell, with the prompt also in LYCEUM_PROMPT. LYCEUM_AGENT_TIMEOUT caps each video, in minutes (90).
 //
 // Order of work: orphaned videos first (cheap), then stale ones (usually cheap: most diffs change nothing
-// a video says), then missing ones (a whole new video each). `--max` caps how many one run takes on.
+// a video says), then unpublished ones (a video whose current version never reached the store, because
+// a run stopped partway: its published manifest is missing or names another verified commit), then
+// missing ones (a whole new video each). `--max` caps how many one run takes on.
 
 import { execFileSync, spawn, spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import { CACHE, ROOT, VIDEOS, videoDir, workDir } from "./paths.mjs";
+import { frontmatter } from "./script.mjs";
+import { STORE, readJson } from "./store.mjs";
 
 const LYCEUM = join(dirname(fileURLToPath(import.meta.url)), "..", "bin", "lyceum.mjs");
 const OUT = join(CACHE, "ci");
 const PLAN = join(OUT, "plan.json");
 const RESULTS = join(OUT, "results.json");
 const SUMMARY = join(OUT, "summary.md");
-const ORDER = { orphaned: 0, stale: 1, missing: 2 };
+const ORDER = { orphaned: 0, stale: 1, unpublished: 2, missing: 3 };
 
 const [sub, ...argv] = process.argv.slice(2);
 const opt = (name) => {
@@ -74,7 +78,15 @@ and, under Settings → Actions → General, "Allow GitHub Actions to create and
 
 // ── plan ────────────────────────────────────────────────────────────────────────────────────────────
 
-function plan() {
+/** The script's `verified:`, as a string to compare with what was published. */
+function verifiedOf(video) {
+  const script = join(VIDEOS, video, "script.md");
+  if (!existsSync(script)) return null;
+  const { verified } = frontmatter(readFileSync(script, "utf8"), { strings: true }).meta;
+  return verified == null ? null : typeof verified === "string" ? verified : JSON.stringify(verified);
+}
+
+async function plan() {
   const max = Number(opt("max") ?? process.env.LYCEUM_CI_MAX ?? 3);
   const named = argv.filter((arg, i) => !arg.startsWith("--") && argv[i - 1] !== "--max");
   const stale = lyceum("stale", ...named, "--json");
@@ -83,6 +95,23 @@ function plan() {
     process.exit(2);
   }
   const reports = JSON.parse(stale.stdout);
+  // A video stale calls current may still never have been published as it stands: a run that stopped
+  // partway lands its work unshipped. The store's manifest says which verified commit went out.
+  if (STORE) {
+    await Promise.all(
+      reports
+        .filter((r) => r.status === "current" || r.status === "new")
+        .map(async (r) => {
+          const manifest = await readJson(`videos/${r.video}/manifest.json`);
+          const published = manifest?.verified == null ? null : typeof manifest.verified === "string" ? manifest.verified : JSON.stringify(manifest.verified);
+          const verified = verifiedOf(r.video);
+          if (!manifest || !verified || published !== verified) {
+            r.status = "unpublished";
+            r.notes = [manifest ? `published at ${published ?? "no verified commit"}, now ${verified ?? "unverified"}` : "never published"];
+          }
+        }),
+    );
+  }
   const needed = reports.filter((r) => r.status in ORDER).sort((a, b) => ORDER[a.status] - ORDER[b.status]);
   const work = needed.slice(0, max).map((r) => ({
     video: r.video,
@@ -108,6 +137,7 @@ function plan() {
 function prompt(w) {
   const task = {
     missing: `${w.explains} has no video yet. Make one under the slug \`${w.video}\`: \`npx lyceum new ${w.video} "<Title>" --explains ${w.explains}\`.`,
+    unpublished: `The video \`${w.video}\` exists but its current version was never published: an earlier run stopped partway, before review or shipping. Pick it up: check it against the code, review every scene's contact sheet, fix what's wrong, then finish.`,
     stale: `The video \`${w.video}\` may be out of date. These of its sources changed since it was verified: ${w.changed.join(", ") || "(see `npx lyceum stale " + w.video + "`)"}.`,
     orphaned: `The video \`${w.video}\` explains ${w.explains}, which is gone. Remove the video.`,
   }[w.status];
@@ -255,9 +285,18 @@ function land() {
     console.log("no changes to land");
   }
 
+  const title = "Lyceum: videos that couldn't be refreshed";
+  const run = process.env.GITHUB_RUN_ID ? `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}` : null;
+  if (!failed.length) {
+    // Every video went through: an issue left open by an earlier run is settled.
+    const open = gh("issue", "list", "--state", "open", "--search", `"${title}" in:title`, "--json", "number", "--jq", ".[0].number");
+    if (open) {
+      gh("issue", "close", open, "--comment", `Every video in this run went through.${run ? ` Run: ${run}` : ""}`);
+      console.log(`closed issue #${open}`);
+    }
+  }
   if (failed.length) {
-    const title = "Lyceum: videos that couldn't be refreshed";
-    const body = `${summary}\nA video that failed keeps the copy published before; the next run tries it again.${process.env.GITHUB_RUN_ID ? `\n\nRun: ${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}` : ""}\n`;
+    const body = `${summary}\nA video that failed keeps the copy published before; the next run tries it again.${run ? `\n\nRun: ${run}` : ""}\n`;
     const open = gh("issue", "list", "--state", "open", "--search", `"${title}" in:title`, "--json", "number", "--jq", ".[0].number");
     if (open) gh("issue", "comment", open, "--body", body);
     else gh("issue", "create", "--title", title, "--body", body);

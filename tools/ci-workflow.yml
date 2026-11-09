@@ -58,6 +58,9 @@ jobs:
           cache: npm
           cache-dependency-path: __PROJECT__/package-lock.json
 
+      # A lockfile may name Lyceum by git+ssh; the runner has no SSH key, and the repository is public.
+      - run: git config --global url."https://github.com/".insteadOf ssh://git@github.com/
+
       - run: npm ci
 
       - name: What needs work
@@ -83,6 +86,13 @@ jobs:
             ~/.cache/huggingface
           key: lyceum-home-${{ runner.os }}-${{ hashFiles('__PROJECT__/package-lock.json') }}
           restore-keys: lyceum-home-${{ runner.os }}-
+
+      # Ubuntu 24.04's AppArmor forbids the unprivileged user namespaces Chrome's sandbox runs in, and
+      # Chrome won't start without them ("No usable sandbox!"). This lets the sandbox work, rather than
+      # turning it off.
+      - name: Let Chrome sandbox itself
+        if: steps.plan.outputs.work == 'true'
+        run: echo 0 | sudo tee /proc/sys/kernel/apparmor_restrict_unprivileged_userns
 
       - name: Install Claude Code
         if: steps.plan.outputs.work == 'true'

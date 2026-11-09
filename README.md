@@ -99,6 +99,22 @@ lyceum/
 | `captions` | `"track"` | `"track"`: subtitles viewers turn on; `"burned"`: drawn into the picture (a script's `captions:` wins) |
 | `theme` | `"dark"` | `"dark"`: the dark canvas, for code explainers; `"paper"`: a light, formal look for presentations (a script's `theme:` wins) |
 
+## Videos that keep themselves current
+
+A video that explains a file, such as a README, can keep itself current, with no one reviewing it:
+1. Give the project a `store`, an S3-compatible bucket such as Cloudflare R2. Narration and rendered
+   scenes are shared through it, so CI never re-voices or redraws what hasn't changed, and published
+   videos live there at fixed URLs.
+2. Set `coverage`, e.g. every `README.md`.
+3. Run `npx lyceum ci init`. It writes a GitHub workflow for every push to main, weekly, and by hand.
+   It asks `lyceum stale` what needs work, and has Claude Code revise or make each video, unattended.
+   `lyceum ship` checks the result and publishes it, and the changes land as a pull request that
+   merges itself.
+
+Each file shows its video as a thumbnail (`lyceum embed`). A video that fails a check keeps the copy
+published before, and the run opens an issue. The workflow needs the store's keys, the voice's key and
+`CLAUDE_CODE_OAUTH_TOKEN` (from `claude setup-token`, on your Claude subscription) as Actions secrets.
+
 ## Licensing
 
 Lyceum is [MIT](LICENSE). Its dependencies are under permissive licenses (MIT, Apache 2.0, ISC and BSD),

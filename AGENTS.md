@@ -50,7 +50,9 @@ explainers/         a Lyceum project of videos about Lyceum, made with this chec
 ## Rules for changes
 
 - **Keep the narration cache stable.** Clips are cached by a hash of the voice object and the spoken text.
-  Changing a default voice's fields, or their key order, re-bills every project's narration.
+  Changing a default voice's fields, or their key order, re-bills every project's narration. Changing
+  `DEFAULT_PROVIDER` in `tools/narrate.mjs` moves every project that names no provider to another voice;
+  narrate refuses that for a video already voiced with another provider rather than re-voice it.
 - **The Whisper pins:** `ALIGNERS` in `tools/narrate.mjs` pins each backend's release and model revision
   (mlx-whisper on Apple Silicon, faster-whisper on any CPU), and a project can override either under
   `whisper`. Each release gets its own venv in the Lyceum home directory. Changing a pin, or the
@@ -84,7 +86,9 @@ explainers/         a Lyceum project of videos about Lyceum, made with this chec
 ## Releases
 
 Projects depend on a release, not on main: `lyceum init` writes `github:acfriedman/lyceum#semver:^X.Y.Z`
-(`tools/version.mjs`), and npm resolves the range against the repository's tags. Every six hours at
+(`tools/version.mjs`), and npm resolves the range against the repository's tags. The repository is the
+one that copy of Lyceum was installed from (`REPO`: the install's lockfile, else package.json's
+`repository`), so a fork's installs check, pin and link to the fork, not this repository. Every six hours at
 most, a `lyceum` command checks the tags and prints a line if a newer release exists; the skill tells the
 agent to pass it on. `lyceum version --hook` checks every time and prints only when one exists, with what
 to do about it: `lyceum init` runs it from a Claude Code session-start hook in the repository's

@@ -2,7 +2,7 @@
 // Narrates a video's script: one audio clip per scene, with word timings, plus the timeline the
 // composition and the captions are laid out from.
 //
-//   lyceum narrate <video> [--provider openai|gemini|say] [--only <scene-id>]
+//   lyceum narrate <video> [--provider say|openai|gemini] [--only <scene-id>]
 //
 // Each clip is cached under .cache/narration by a hash of everything that shapes the audio (provider,
 // voice, model, settings, spoken text), so re-running after a script edit only pays for the scenes
@@ -10,14 +10,16 @@
 // don't jump in volume. Keys (OPENAI_KEY or OPENAI_API_KEY, GEMINI_API_KEY) come from the environment or
 // from the project's own .env (see env.mjs).
 //
-// The default voice is OpenAI's gpt-4o-mini-tts "cedar". A script picks another with frontmatter
-// `voice: { provider, id, … }`; fields override that provider's defaults below. Word timings come from
+// The default voice is macOS's say, which runs on this machine: narration goes nowhere unless a project
+// or script picks a hosted voice with `voice: { provider, id, … }` (`lyceum init` writes the one chosen
+// there). A voice's fields override that provider's defaults below. Word timings come from
 // align.py (beside this file), which derives them with local Whisper (a Python venv shared by every
 // project, under the Lyceum home directory, created on first use).
 //
-// The project's lyceum.config.json can set a default `voice`, pin each provider's voice under `voices`
-// (its model, say), list the only `providers` its narration may be sent to, and add `pronounce` and
-// `allowSpoken` entries that apply to every script; a script's own frontmatter wins.
+// The project's lyceum.config.json lists the only `providers` its narration may be sent to: until it
+// does, nothing is sent to a hosted voice. It can also set a default `voice`, pin each provider's voice
+// under `voices` (its model, say), and add `pronounce` and `allowSpoken` entries that apply to every
+// script; a script's own frontmatter wins.
 
 import { createHash } from "node:crypto";
 import { execFile, execFileSync, spawnSync } from "node:child_process";
@@ -72,12 +74,17 @@ const VOICES = {
   say: { provider: "say", id: "Samantha", rate: 180 },
 };
 
+// The provider when nothing names one: the local voice, so nothing is sent anywhere unless someone chose
+// to send it. A `voice:` without a `provider` is this provider's voice too.
+const DEFAULT_PROVIDER = "say";
+
 /**
- * The voice a run uses: `--provider` wins, then the script's `voice:`, then OpenAI. Its defaults are
- * that provider's VOICES entry with the project's `voices` entry for it on top, whichever way the
- * provider was chosen. Overrides keep VOICES' key order, so a project without them keeps its cache.
+ * The voice a run uses: `--provider` wins, then the script's `voice:` (else the project's), then
+ * DEFAULT_PROVIDER. Its defaults are that provider's VOICES entry with the project's `voices` entry for
+ * it on top, whichever way the provider was chosen. Overrides keep VOICES' key order, so a project
+ * without them keeps its cache. `from` names where `scripted` came from, for errors.
  */
-function resolveVoice(cliProvider, scripted = {}) {
+function resolveVoice(cliProvider, scripted = {}, from = CONFIG_FILE) {
   const expected = `expected ${Object.keys(VOICES).join(", ")}`;
   for (const name of Object.keys(CONFIG.voices)) {
     if (!VOICES[name]) throw new Error(`${CONFIG_FILE}: unknown provider "${name}" under voices (${expected})`);
@@ -88,29 +95,54 @@ function resolveVoice(cliProvider, scripted = {}) {
       if (!VOICES[name]) throw new Error(`${CONFIG_FILE}: unknown provider "${name}" under providers (${expected})`);
     }
   }
-  const provider = cliProvider ?? scripted.provider ?? "openai";
+  const provider = cliProvider ?? scripted.provider ?? DEFAULT_PROVIDER;
   if (!VOICES[provider]) throw new Error(`unknown provider "${provider}" (${expected})`);
   const base = { ...VOICES[provider], ...CONFIG.voices[provider], provider };
   // The script's overrides describe its own provider's voice; they don't carry over to another one.
-  return (scripted.provider ?? "openai") === provider ? { ...base, ...scripted, provider } : base;
+  if ((scripted.provider ?? DEFAULT_PROVIDER) !== provider) return base;
+  // A voice written for a hosted provider before say became the default names none: say would ignore
+  // its delivery and model, so it says so rather than read the script in another voice.
+  const hosted = ["instructions", "model"].filter((field) => field in scripted && !(field in VOICES[provider]));
+  if (!scripted.provider && hosted.length) {
+    throw new Error(
+      `voice: in ${from} has ${hosted.join(" and ")} but no provider, and a voice without one is ${provider}'s, ` +
+        `which takes neither. Add the provider it was written for, e.g. voice: { provider: openai, … }.`,
+    );
+  }
+  return { ...base, ...scripted, provider };
 }
 
 /** Where a run's provider was chosen, for messages: the flag, the script, the project, or the default. */
 function providerChoice(cliProvider, scriptVoice, video) {
   if (cliProvider) return "--provider";
-  if (scriptVoice) return scriptVoice.provider ? `voice: in ${video}/script.md` : "Lyceum's default (a script voice: without a provider is OpenAI's)";
+  if (scriptVoice) return scriptVoice.provider ? `voice: in ${video}/script.md` : `Lyceum's default, ${DEFAULT_PROVIDER} (voice: in ${video}/script.md names no provider)`;
   if (CONFIG.voice?.provider) return `voice in ${CONFIG_FILE}`;
-  return "Lyceum's default";
+  return `Lyceum's default, ${DEFAULT_PROVIDER}`;
 }
+
+// Voices that run on this machine: their narration goes nowhere, so they need no `providers` entry
+// while a project hasn't set one.
+const LOCAL = new Set(["say"]);
 
 /**
  * A project's `providers` lists where its narration may be sent: nothing is voiced by any other
- * provider. Clips already cached never leave the machine, so they're reused whatever their provider;
- * only `toVoice`, the scenes that would be voiced now, are refused.
+ * provider, and until the project sets it, by no hosted provider at all (a local voice still runs).
+ * Clips already cached never leave the machine, so they're reused whatever their provider; only
+ * `toVoice`, the scenes that would be voiced now, are refused.
  */
 function checkProviderAllowed(provider, chosenBy, toVoice) {
   const allowed = CONFIG.providers;
-  if (allowed === undefined || allowed.includes(provider) || toVoice.length === 0) return;
+  if (toVoice.length === 0) return;
+  if (allowed === undefined) {
+    if (LOCAL.has(provider)) return;
+    throw new Error(
+      `${CONFIG_FILE} doesn't say where narration may be sent, so nothing was sent: ${toVoice.join(", ")} ` +
+        `would go to "${provider}" (chosen by ${chosenBy}).\n` +
+        `List the voice providers this project may use in ${join(ROOT, CONFIG_FILE)}, e.g. "providers": ["${provider}"]. ` +
+        `Known providers: ${Object.keys(VOICES).join(", ")}; ${[...LOCAL].join(", ")} runs on this machine and is allowed without it.`,
+    );
+  }
+  if (allowed.includes(provider)) return;
   throw new Error(
     `provider "${provider}" (chosen by ${chosenBy}) isn't allowed in this project: ${CONFIG_FILE} allows ` +
       `${allowed.length ? allowed.join(", ") : "none"}, and ${toVoice.join(", ")} would be sent to it.\n` +
@@ -126,7 +158,7 @@ function parseArgs(argv) {
     else args.dir = argv[i];
   }
   if (!args.dir) {
-    console.error("usage: lyceum narrate <video> [--provider openai|gemini|say] [--only <scene-id>]");
+    console.error("usage: lyceum narrate <video> [--provider say|openai|gemini] [--only <scene-id>]");
     process.exit(2);
   }
   return args;
@@ -377,7 +409,15 @@ function joinParts(parts, mp3Path) {
 
 async function synthesizeSay(text, voice, mp3Path) {
   const aiff = mp3Path.replace(/\.mp3$/, ".aiff");
-  execFileSync("say", ["-v", voice.id, "-r", String(voice.rate), "-o", aiff, text]);
+  try {
+    execFileSync("say", ["-v", voice.id, "-r", String(voice.rate), "-o", aiff, text]);
+  } catch (error) {
+    if (error.code !== "ENOENT") throw error;
+    throw new Error(
+      `say is macOS's voice, and this machine doesn't have it: to narrate here, name a hosted voice ` +
+        `("voice" and "providers" in ${CONFIG_FILE}, or --provider openai|gemini)`,
+    );
+  }
   execFileSync("ffmpeg", ["-y", "-loglevel", "error", "-i", aiff, "-ar", "44100", "-b:a", "192k", mp3Path]);
   return (await align(text, mp3Path)).words;
 }
@@ -418,7 +458,7 @@ async function main() {
   };
 
   const timing = { ...DEFAULTS, ...(meta.timing ?? {}) };
-  const voice = resolveVoice(args.provider, meta.voice);
+  const voice = resolveVoice(args.provider, meta.voice, scripted.voice ? `${video}/script.md` : CONFIG_FILE);
   const provider = voice.provider;
 
   mkdirSync(CACHE, { recursive: true });
@@ -454,6 +494,16 @@ async function main() {
     toVoice.push(scene.id);
     const found = shortenings(text, allowed);
     if (found.length) problems.push(`  ${scene.id}: ${found.join(", ")}`);
+  }
+  // A video voiced with another provider while that was Lyceum's default (OpenAI, until say) names none,
+  // and would otherwise be voiced again, every scene, in another voice.
+  if (!args.provider && !meta.voice?.provider && previous?.provider && previous.provider !== provider && toVoice.length) {
+    throw new Error(
+      `${video} was narrated with ${previous.provider} (see its narration.json), but nothing names a provider now, and ` +
+        `Lyceum's default is ${provider}: every scene would be voiced again, in another voice. To keep its voice, set ` +
+        `"voice": { "provider": "${previous.provider}" } in ${CONFIG_FILE}, and list it under "providers". To move it to ` +
+        `${provider}, narrate with --provider ${provider}.`,
+    );
   }
   if (problems.length) {
     throw new Error(

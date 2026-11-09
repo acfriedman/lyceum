@@ -47,7 +47,9 @@ explainers/         a Lyceum project of videos about Lyceum, made with this chec
 ## Rules for changes
 
 - **Keep the narration cache stable.** Clips are cached by a hash of the voice object and the spoken text.
-  Changing a default voice's fields, or their key order, re-bills every project's narration.
+  Changing a default voice's fields, or their key order, re-bills every project's narration. Changing
+  `DEFAULT_PROVIDER` in `tools/narrate.mjs` moves every project that names no provider to another voice;
+  narrate refuses that for a video already voiced with another provider rather than re-voice it.
 - **The Whisper pins:** `ALIGNERS` in `tools/narrate.mjs` pins each backend's release and model revision
   (mlx-whisper on Apple Silicon, faster-whisper on any CPU), and a project can override either under
   `whisper`. Each release gets its own venv in the Lyceum home directory. Changing a pin, or the

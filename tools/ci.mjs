@@ -11,8 +11,8 @@
 //
 // The agent is Claude Code by default (`claude -p`, authenticated by CLAUDE_CODE_OAUTH_TOKEN, a
 // subscription token from `claude setup-token`, or ANTHROPIC_API_KEY, which wins when both are set).
-// LYCEUM_AGENT_MODEL picks its model. LYCEUM_AGENT replaces the whole command, run by the shell with
-// the prompt on stdin and in LYCEUM_PROMPT. LYCEUM_AGENT_TIMEOUT caps each video, in minutes (90).
+// LYCEUM_AGENT_MODEL picks its model. The prompt arrives on stdin. LYCEUM_AGENT replaces the whole
+// command, run by the shell, with the prompt also in LYCEUM_PROMPT. LYCEUM_AGENT_TIMEOUT caps each video, in minutes (90).
 //
 // Order of work: orphaned videos first (cheap), then stale ones (usually cheap: most diffs change nothing
 // a video says), then missing ones (a whole new video each). `--max` caps how many one run takes on.
@@ -127,11 +127,12 @@ function agent(w) {
   const minutes = Number(process.env.LYCEUM_AGENT_TIMEOUT ?? 90);
   // Claude Code headless: no prompts (a tool it isn't allowed is refused, not asked about), and only
   // the tools the skill uses: the shell for lyceum's commands, files, subagents for scenes, the skill.
+  // The prompt goes on stdin: --allowedTools takes any number of values, so a prompt after it would be
+  // read as one more tool.
   const claude = [
     "-p", "--permission-mode", "acceptEdits", "--permission-prompts", "none",
     "--allowedTools", "Bash,Read,Edit,Write,Agent,Skill",
     ...(process.env.LYCEUM_AGENT_MODEL ? ["--model", process.env.LYCEUM_AGENT_MODEL] : []),
-    text,
   ];
   return new Promise((resolve) => {
     const child = process.env.LYCEUM_AGENT
@@ -141,7 +142,7 @@ function agent(w) {
       console.error(`agent: ${w.video} took longer than ${minutes} minutes; stopping it`);
       child.kill("SIGTERM");
     }, minutes * 60_000);
-    child.stdin.end(process.env.LYCEUM_AGENT ? text : "");
+    child.stdin.end(text);
     child.on("error", (error) => console.error(`agent: ${error.message}`));
     child.on("close", (code, signal) => {
       clearTimeout(timer);

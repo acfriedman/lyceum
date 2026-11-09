@@ -12,7 +12,7 @@
 //   }
 //
 // Credentials are LYCEUM_STORE_ACCESS_KEY_ID and LYCEUM_STORE_SECRET_ACCESS_KEY, from the environment or
-// the nearest .env, never the config. With them, reads and writes are signed (AWS Signature Version 4).
+// the project's .env, never the config. With them, reads and writes are signed (AWS Signature Version 4).
 // Without them, reads go through the public URL, so any checkout can use the caches, and writes are
 // skipped.
 //

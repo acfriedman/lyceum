@@ -17,10 +17,10 @@ tools/              one file per command, plus paths.mjs (the layout, described 
                     video.mjs (a video as the renderer sees it: the title card, the scenes, its caption
                     setting), store.mjs (the project's bucket: clips by hash, scenes by fingerprint,
                     published videos), coverage.mjs (which files must have a video, and the block that
-                    shows one in its file), env.mjs (secrets from the environment or .env), ci.mjs with
-                    ci-workflow.yml (unattended refreshes from GitHub Actions), align.py (Whisper word
-                    alignment) and chrome.mjs (the renderer: the kit's page, bundled with esbuild and
-                    drawn frame by frame in headless Chrome)
+                    shows one in its file), env.mjs (secrets from the environment or the project's
+                    .env), ci.mjs with ci-workflow.yml (unattended refreshes from GitHub Actions),
+                    align.py (Whisper word alignment) and chrome.mjs (the renderer: the kit's page,
+                    bundled with esbuild and drawn frame by frame in headless Chrome)
 kit/                what scenes import as "#kit": timing (cue.tsx), the frame clock, primitives, theme
                     and the stage, plus the page the renderer draws them in (page.tsx)
 fonts/              CMU Serif and JetBrains Mono (SIL Open Font License)

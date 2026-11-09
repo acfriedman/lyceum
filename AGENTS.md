@@ -19,10 +19,10 @@ tools/              one file per command, plus paths.mjs (the layout, described 
                     published videos), coverage.mjs (which files must have a video, and the block that
                     shows one in its file), sensitive.mjs with sensitive/ (the emails, phone numbers and
                     credentials narration may not hold: gitleaks's rules, vendored), env.mjs (secrets
-                    from the environment or .env), ci.mjs with
-                    ci-workflow.yml (unattended refreshes from GitHub Actions), align.py (Whisper word
-                    alignment) and chrome.mjs (the renderer: the kit's page, bundled with esbuild and
-                    drawn frame by frame in headless Chrome)
+                    from the environment or the project's .env), ci.mjs with ci-workflow.yml (unattended
+                    refreshes from GitHub Actions), align.py (Whisper word alignment) and chrome.mjs (the
+                    renderer: the kit's page, bundled with esbuild and drawn frame by frame in headless
+                    Chrome)
 kit/                what scenes import as "#kit": timing (cue.tsx), the frame clock, primitives, theme
                     and the stage, plus the page the renderer draws them in (page.tsx)
 fonts/              CMU Serif and JetBrains Mono (SIL Open Font License)

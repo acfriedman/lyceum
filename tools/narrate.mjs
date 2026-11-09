@@ -8,7 +8,7 @@
 // voice, model, settings, spoken text), so re-running after a script edit only pays for the scenes
 // whose narration changed. Every clip is brought to the same loudness (LOUDNESS), so separate takes
 // don't jump in volume. Keys (OPENAI_KEY or OPENAI_API_KEY, GEMINI_API_KEY) come from the environment or
-// from the nearest .env walking up from the project.
+// from the project's own .env (see env.mjs).
 //
 // The default voice is OpenAI's gpt-4o-mini-tts "cedar". A script picks another with frontmatter
 // `voice: { provider, id, … }`; fields override that provider's defaults below. Word timings come from

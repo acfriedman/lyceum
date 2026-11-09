@@ -137,8 +137,9 @@ This writes `narration.json` (durations, word timings, timeline) and `captions.s
 - **Cost and speed:** every paragraph is voiced at once, so narration takes about as long as the longest
   paragraph plus alignment, well under a minute. Clips are cached by a hash of voice and text, so only
   changed text is billed: roughly $0.15 per 10-minute video with OpenAI.
-- **Keys:** `OPENAI_KEY` (or `OPENAI_API_KEY`) and `GEMINI_API_KEY`, from the environment or the nearest
-  `.env` at or above the project.
+- **Keys:** `OPENAI_KEY` (or `OPENAI_API_KEY`) and `GEMINI_API_KEY`, from the environment or the
+  project's own `.env`. Lyceum never reads a `.env` above the project. If a key is missing, tell the
+  user; don't go looking for one elsewhere on the machine.
 - **Voice:** a script can pin a voice in frontmatter: `voice: { provider: gemini }`, or
   `{ id: marin, instructions: … }` for another OpenAI voice. A voice's `instructions` direct its delivery
   and are never spoken: Gemini takes them as a separate style and reads the narration verbatim.

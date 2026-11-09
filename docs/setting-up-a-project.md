@@ -71,9 +71,16 @@ path into your `node_modules`, so gitignore it. Each contributor runs the comman
 
 ## Voice keys
 
-`narrate` reads keys from the environment, or else from the nearest `.env` at or above the project. Inside
-a code repository, that can be the app's own `.env`. To keep the voice key separate, put a `.env` in the
-project itself. `lyceum init` gitignores it.
+`narrate` reads keys from the environment, or else from the project's own `.env`, the one beside
+`lyceum.config.json`. It never reads a `.env` above the project, so an app's `.env` or one in your home
+directory is never picked up by accident. `lyceum init` gitignores the project's `.env`.
+
+Better still, keep keys out of files and inject them from a secrets manager. With 1Password, put
+references such as `OPENAI_KEY=op://Private/OpenAI/credential` in a file and run Lyceum under `op run`:
+
+```bash
+op run --env-file=secrets.env -- npx lyceum narrate <video>
+```
 
 ## Sharing with a team
 

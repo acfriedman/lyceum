@@ -3,12 +3,18 @@
 // material that may hold any of these, so narrate refuses text that contains one (see narrate.mjs).
 //
 // Narration is written to be said aloud, so emails and phone numbers are caught in their spoken forms
-// too ("name at example dot com", "five five five, one two one two"). Credentials are caught two ways:
+// too ("name at example dot com", "five five five, one two one two"). Credentials are caught three ways,
+// each passing over what an earlier one already named:
 // - by the prefixes of well-known keys (AWS, GitHub, Google, OpenAI, …), so the error can name one;
+// - by gitleaks's maintained rules (MIT), for the hundreds of services Lyceum doesn't name itself:
+//   vendored in sensitive/gitleaks.json by scripts/update-gitleaks.mjs, and applied the way gitleaks
+//   applies them (each rule's keywords, pattern, entropy floor and allowlists, then the global allowlist);
 // - by shape: narration is prose, which never holds a long, random-looking run of letters and digits,
 //   so any such token is taken for a key, whoever issued it.
 
-/** Keys with a recognisable shape, named in errors. Anything else random-looking is caught by RANDOM. */
+import { readFileSync } from "node:fs";
+
+/** Keys with a recognisable shape, named in errors. gitleaks's rules and RANDOM catch the rest. */
 const KEYS = [
   ["Anthropic API key", /\bsk-ant-[A-Za-z0-9_-]{20,}/g],
   ["OpenAI API key", /\bsk-(?:proj-|svcacct-|admin-)?[A-Za-z0-9_-]{20,}/g],
@@ -45,7 +51,59 @@ function entropy(text) {
   return bits;
 }
 
-/** Credentials: well-known keys by name, then any other random-looking token. */
+// gitleaks's rules, compiled once. Their patterns were converted from Go's syntax when vendored.
+const GITLEAKS = JSON.parse(readFileSync(new URL("./sensitive/gitleaks.json", import.meta.url), "utf8"));
+const compileList = (list) =>
+  list && {
+    ...list,
+    regexes: (list.regexes ?? []).map(({ source, flags }) => new RegExp(source, flags)),
+    stopwords: (list.stopwords ?? []).map((word) => word.toLowerCase()),
+  };
+const RULES = GITLEAKS.rules.map((rule) => ({
+  ...rule,
+  regex: new RegExp(rule.regex.source, `${rule.regex.flags}g`),
+  allowlists: (rule.allowlists ?? []).map(compileList),
+}));
+const GLOBAL = compileList(GITLEAKS.allowlist);
+
+/** Whether a gitleaks allowlist lets a finding through, as gitleaks decides it (narration has no path). */
+function allows(list, { secret, match, line }) {
+  if (!list) return false;
+  const target = list.regexTarget === "match" ? match : list.regexTarget === "line" ? line : secret;
+  const checks = [];
+  if (list.regexes.length) checks.push(list.regexes.some((r) => r.test(target)));
+  if (list.stopwords.length) checks.push(list.stopwords.some((word) => secret.toLowerCase().includes(word)));
+  if (list.condition === "AND") return !list.paths && checks.length > 0 && checks.every(Boolean);
+  return checks.some(Boolean);
+}
+
+/** What gitleaks's rules find in `text`: `{ rule, secret, start, end }`, the span the secret's. */
+function gitleaks(text) {
+  const lower = text.toLowerCase();
+  const found = [];
+  for (const rule of RULES) {
+    if (rule.keywords.length && !rule.keywords.some((keyword) => lower.includes(keyword))) continue;
+    for (const m of text.matchAll(rule.regex)) {
+      // gitleaks's secret: the rule's group, else the first group that matched, else the whole match.
+      const secret = (rule.secretGroup ? m[rule.secretGroup] : m.slice(1).find(Boolean)) ?? m[0];
+      if (!secret) continue;
+      if (rule.entropy) {
+        if (entropy(secret) <= rule.entropy) continue;
+        // gitleaks's generic rules also need a digit, so a long word isn't taken for a key.
+        if (rule.id.startsWith("generic") && !/\d/.test(secret)) continue;
+      }
+      const lineStart = text.lastIndexOf("\n", m.index) + 1;
+      const lineEnd = text.indexOf("\n", m.index + m[0].length);
+      const finding = { secret, match: m[0], line: text.slice(lineStart, lineEnd < 0 ? undefined : lineEnd) };
+      if (rule.allowlists.some((list) => allows(list, finding)) || allows(GLOBAL, finding)) continue;
+      const start = m.index + Math.max(0, m[0].indexOf(secret));
+      found.push({ rule: rule.id, secret, start, end: start + secret.length });
+    }
+  }
+  return found;
+}
+
+/** Credentials: well-known keys by name, then gitleaks's rules, then any other random-looking token. */
 function credentials(text) {
   const found = [];
   const overlaps = (start, end) => found.some((f) => f.start < end && f.end > start);
@@ -56,6 +114,9 @@ function credentials(text) {
       // The first name that fits wins: an Anthropic key also has OpenAI's sk- prefix.
       if (!overlaps(start, end)) found.push({ kind: "credential", rule: name, match: m[0], start, end });
     }
+  }
+  for (const { rule, secret, start, end } of gitleaks(text)) {
+    if (!overlaps(start, end)) found.push({ kind: "credential", rule: `gitleaks ${rule}`, match: secret, start, end });
   }
   for (const m of text.matchAll(TOKEN)) {
     const start = m.index;
@@ -149,8 +210,8 @@ function contacts(text) {
 
 /**
  * The sensitive strings in `text`, each `{ kind, rule, match }`: kind is "email", "phone number" or
- * "credential", rule what caught it (for a credential, the kind of key), and match the exact
- * string, as an exception would list it. A string caught by several rules is listed once.
+ * "credential", rule what caught it (for a credential, the kind of key, or "gitleaks <rule id>"), and
+ * match the exact string, as an exception would list it. A string caught by several rules is listed once.
  */
 export function findSensitive(text) {
   const seen = new Set();

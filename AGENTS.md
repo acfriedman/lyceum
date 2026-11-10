@@ -67,6 +67,10 @@ explainers/         a Lyceum project of videos about Lyceum, made with this chec
 - **Store keys are content addresses.** A project's store files clips under narrate's hash and scenes
   under render's fingerprint, so anything that changes either also misses every store. Nothing in the
   normal flow deletes from a store.
+- **Scenes stay offline.** Chrome's proxy is the local server (`offline()` and `serve()` in
+  `tools/chrome.mjs`), which serves its own origin and refuses everything else; a refused request fails
+  the render with the scene and the URL. Keep every request going through it: don't add a bypass, and
+  keep WebRTC limited to the proxy (without that switch, it reaches STUN servers over UDP).
 - **The page is part of every scene's look.** Scenes were laid out with every element border-box and
   Chrome drawing at the render's scale, and `tools/chrome.mjs` sets both. A change to the page, its CSS or
   Chrome's switches can move every scene by a pixel: compare a scene's contact sheet before and after

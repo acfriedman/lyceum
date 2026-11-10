@@ -10,7 +10,7 @@ sources:
   - tools/render.mjs (one scene re-rendered on its own; unchanged scenes reused)
   - kit/cue.tsx (every element timed to the words that introduce it)
   - LICENSE (MIT)
-verified: "3160da541b16"
+verified: "f7ba2b6a9c65"
 ---
 
 <!--

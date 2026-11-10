@@ -28,17 +28,18 @@
 
 import { createHash } from "node:crypto";
 import { execFile, execFileSync, spawnSync } from "node:child_process";
+import { ALIGNERS, PYTHON, lock, specs } from "./aligners.mjs";
 import { withSlot } from "./slots.mjs";
 import { secret } from "./env.mjs";
 import { fetchNarration, pushNarration } from "./store.mjs";
 import { promisify } from "node:util";
 import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import { toSrt } from "./captions.mjs";
 import { describe, findSensitive } from "./sensitive.mjs";
 import { parseScript, spokenText } from "./script.mjs";
-import { CACHE as CACHE_ROOT, CONFIG, CONFIG_FILE, HOME, ROOT, preparePublic, videoDir as resolveVideoDir, videoSlug } from "./paths.mjs";
+import { CACHE as CACHE_ROOT, CONFIG, CONFIG_FILE, ENGINE, HOME, ROOT, preparePublic, videoDir as resolveVideoDir, videoSlug } from "./paths.mjs";
 
 const CACHE = join(CACHE_ROOT, "narration");
 
@@ -170,32 +171,16 @@ function parseArgs(argv) {
   return args;
 }
 
-// The Whisper that aligns narration, pinned like the renderer's Chrome: per backend, the package's
-// release and the model's revision. mlx-whisper needs Apple Silicon's GPU; faster-whisper runs on any
-// CPU, so CI on Linux (or on a Mac runner without Metal) can narrate. Both run the same model,
-// whisper-large-v3-turbo, and align.py matches either transcript to the script the same way.
+// The Whisper that aligns narration: ALIGNERS (tools/aligners.mjs) pins, per backend, the package's
+// release, its whole dependency tree (a lockfile with hashes) and the model's revision.
 //
 // The backend is LYCEUM_ALIGNER, else `whisper.backend` in lyceum.config.json, else mlx on Apple
 // Silicon and faster-whisper elsewhere. A project can pin either under `whisper.mlx` or
 // `whisper["faster-whisper"]` (a flat `whisper: { version, model, revision }` still pins mlx). Each
 // release gets its own venv and each revision its own download, so changing a pin never reuses the old
-// one. The clip cache's key leaves the aligner out: clips already cached keep the word timings they were
-// accepted with, whichever backend timed them.
-const ALIGNERS = {
-  mlx: {
-    package: "mlx-whisper",
-    version: "0.4.3",
-    model: "mlx-community/whisper-large-v3-turbo",
-    revision: "a4aaeec0636e6fef84abdcbe3544cb2bf7e9f6fb",
-  },
-  "faster-whisper": {
-    package: "faster-whisper",
-    version: "1.2.1",
-    requires: ["ctranslate2==4.8.5"], // the inference engine: its numerics shape the timings
-    model: "dropbox-dash/faster-whisper-large-v3-turbo",
-    revision: "0a363e9161cbc7ed1431c9597a8ceaf0c4f78fcf",
-  },
-};
+// one. A project that pins another release (or other `requires`) than ALIGNERS gets it resolved fresh,
+// since Lyceum's lockfile is for its own pins. The clip cache's key leaves the aligner out: clips already
+// cached keep the word timings they were accepted with, whichever backend timed them.
 const ALIGNER = process.env.LYCEUM_ALIGNER || CONFIG.whisper?.backend || (process.platform === "darwin" && process.arch === "arm64" ? "mlx" : "faster-whisper");
 if (!ALIGNERS[ALIGNER]) throw new Error(`unknown aligner "${ALIGNER}": use ${Object.keys(ALIGNERS).join(" or ")}`);
 const WHISPER = (() => {
@@ -204,19 +189,33 @@ const WHISPER = (() => {
 })();
 const ALIGN_PY = join(dirname(fileURLToPath(import.meta.url)), "align.py");
 
-/** The Python that runs align.py: a venv with the pinned aligner, created with uv on first use. */
+let alignerBin;
+/**
+ * The Python that runs align.py: a venv with the pinned aligner, created with uv on first use. It's
+ * installed from the backend's lockfile, every package checked against its hash (a mismatch fails the
+ * install), unless the project pins another release than the lockfile's.
+ */
 function alignerPython() {
+  if (alignerBin) return alignerBin;
   // mlx keeps its original venv name, so existing machines reuse theirs.
   const venv = join(HOME, ALIGNER === "mlx" ? `whisper-${WHISPER.version}` : `${WHISPER.package}-${WHISPER.version}`);
   const installed = join(venv, ".installed"); // written last, so an interrupted install is redone
-  const specs = [`${WHISPER.package}==${WHISPER.version}`, ...(WHISPER.requires ?? [])];
-  if (!existsSync(installed) || readFileSync(installed, "utf8") !== `${specs.join("\n")}\n`) {
-    console.log(`  creating ${venv} (${specs.join(", ")}) for word alignment…`);
-    execFileSync("uv", ["venv", "-q", "--clear", "--python", "3.12", venv], { stdio: "inherit" });
-    execFileSync("uv", ["pip", "install", "-q", ...specs], { stdio: "inherit", env: { ...process.env, VIRTUAL_ENV: venv } });
-    writeFileSync(installed, `${specs.join("\n")}\n`);
+  const wanted = specs(WHISPER);
+  const locked = wanted.join("\n") === specs(ALIGNERS[ALIGNER]).join("\n") ? lock(ALIGNER) : null;
+  // What the venv holds: the lockfile it was installed from, by hash, or the specs it was resolved from.
+  const stamp = locked ? `${relative(ENGINE, locked.path)} sha256:${locked.sha256}\n` : `${wanted.join("\n")}\n`;
+  if (!existsSync(installed) || readFileSync(installed, "utf8") !== stamp) {
+    console.log(`  creating ${venv} (${wanted.join(", ")}${locked ? ", from its lockfile" : ""}) for word alignment…`);
+    if (!locked) {
+      console.log(`  ${CONFIG_FILE} pins ${wanted.join(", ")}, which Lyceum's lockfile doesn't: resolving it fresh, without hashes`);
+    }
+    const env = { ...process.env, VIRTUAL_ENV: venv };
+    execFileSync("uv", ["venv", "-q", "--clear", "--python", PYTHON, venv], { stdio: "inherit" });
+    if (locked) execFileSync("uv", ["pip", "sync", "-q", "--require-hashes", locked.path], { stdio: "inherit", env });
+    else execFileSync("uv", ["pip", "install", "-q", ...wanted], { stdio: "inherit", env });
+    writeFileSync(installed, stamp);
   }
-  return join(venv, "bin", "python");
+  return (alignerBin = join(venv, "bin", "python"));
 }
 
 let modelDir;

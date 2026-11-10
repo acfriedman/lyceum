@@ -110,7 +110,7 @@ export const EachMachine: React.FC = () => {
         y={OUT_Y[0]}
         status="linked"
         color={ROLE.agent}
-        rest="~/.claude/skills/lyceum → …/explainers/node_modules/lyceum/skills/lyceum"
+        rest="~/.claude/skills/lyceum → …/lyceum/node_modules/lyceum/skills/lyceum"
         at={linked}
         out={soLink}
       />
@@ -120,13 +120,13 @@ export const EachMachine: React.FC = () => {
       <Text x={USER.x} y={USER.y + USER.h / 2 + 34} size={28} color={C.dim} italic at={account + s(0.3)} out={soLink} reveal="fade" dur={0.5}>
         your user account
       </Text>
-      <Node x={APP.x} y={APP.y} w={APP.w} h={APP.h} label="your-app/explainers" mono size={32} color={ROLE.lyceum} at={project} out={soLink} />
+      <Node x={APP.x} y={APP.y} w={APP.w} h={APP.h} label="your-app/lyceum" mono size={32} color={ROLE.lyceum} at={project} out={soLink} />
       <Svg>
         <Arrow from={[USER.x + USER.w / 2 + 12, USER.y]} to={[APP.x - APP.w / 2 - 12, APP.y]} at={project + s(0.2)} out={soLink} dur={0.6} color={ROLE.agent} width={4} />
       </Svg>
 
       {/* A second project, on a newer Lyceum: its link attempt is skipped. */}
-      <Node x={OTHER.x} y={OTHER.y} w={OTHER.w} h={OTHER.h} label="other-app/explainers" mono size={32} color={ROLE.lyceum} at={two} out={soLink} />
+      <Node x={OTHER.x} y={OTHER.y} w={OTHER.w} h={OTHER.h} label="other-app/lyceum" mono size={32} color={ROLE.lyceum} at={two} out={soLink} />
       <Pill x={OTHER.x} y={OTHER.y + OTHER.h / 2 + 36} text="newer Lyceum" color={ROLE.lyceum} size={26} at={versions} out={soLink} />
       <OutLine
         y={OUT_Y[1]}
@@ -150,7 +150,7 @@ export const EachMachine: React.FC = () => {
         y={OUT_Y[0]}
         status="linked"
         color={ROLE.agent}
-        rest="…/your-app/.claude/skills/lyceum → …/explainers/node_modules/lyceum/skills/lyceum"
+        rest="…/your-app/.claude/skills/lyceum → …/lyceum/node_modules/lyceum/skills/lyceum"
         at={instead}
         out={second}
       />
@@ -162,7 +162,7 @@ export const EachMachine: React.FC = () => {
         your-app/
       </Text>
       <Node x={LINK.x} y={LINK.y} w={LINK.w} h={LINK.h} label=".claude/skills/lyceum" mono size={32} color={ROLE.agent} at={repo + s(0.3)} out={second} />
-      <Node x={EXPL.x} y={EXPL.y} w={EXPL.w} h={EXPL.h} label="explainers/" mono size={32} color={ROLE.lyceum} at={repo + s(0.5)} out={second} />
+      <Node x={EXPL.x} y={EXPL.y} w={EXPL.w} h={EXPL.h} label="lyceum/" mono size={32} color={ROLE.lyceum} at={repo + s(0.5)} out={second} />
       <Svg>
         <Arrow from={[LINK.x + LINK.w / 2 + 12, LINK.y]} to={[EXPL.x - EXPL.w / 2 - 12, EXPL.y]} at={instead + s(0.2)} out={second} dur={0.6} color={ROLE.agent} width={4} />
       </Svg>
@@ -180,7 +180,7 @@ export const EachMachine: React.FC = () => {
         y={ENV.y}
         w={ENV.w}
         size={ENV.size}
-        title="explainers/.env"
+        title="lyceum/.env"
         at={voiceKey}
         border={border}
         lines={[{ text: "OPENAI_KEY=sk-••••••••••••" }]}
@@ -193,7 +193,7 @@ export const EachMachine: React.FC = () => {
         y={IGNORE.y}
         w={IGNORE.w}
         size={IGNORE.size}
-        title="explainers/.gitignore"
+        title="lyceum/.gitignore"
         at={makeSure}
         lines={[{ text: ".env", color: C.dim }]}
         highlight={[{ lines: [0], at: ignores, color: ROLE.ignored }]}

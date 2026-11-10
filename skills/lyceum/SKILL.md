@@ -15,10 +15,15 @@ it works.
 ## 0. Find the project and read its guide
 
 A Lyceum project is the directory holding `lyceum.config.json`, found at or above the working directory.
-Run every command from there. If there is none, ask the user where the videos should live and run
-`npx lyceum init <dir>`, then `npm install`. Suggest `lyceum/` inside the repository the videos
-explain, or a repository of its own for videos that span several repositories or a whole product. Never
-add Lyceum to an application's own `package.json`.
+Run every command from there. If there is none, ask the user where the videos should live and which
+voice should narrate them, then run `npx lyceum init <dir> --provider <voice>` and `npm install`.
+- **Where:** suggest `lyceum/` inside the repository the videos explain, or a repository of its own for
+  videos that span several repositories or a whole product. Never add Lyceum to an application's own
+  `package.json`.
+- **Which voice:** `say` (macOS's built-in voice: free, and nothing leaves the machine; the default),
+  `openai` or `gemini` (narration is sent to that company, and needs its key). The choice becomes the
+  project's voice and its only allowed provider. Always pass `--provider`: without it, `init` asks at
+  the terminal, which you can't answer.
 
 Read the file named by the config's `project` (usually `project.md`; older projects name it under
 `brief`) before anything else. It holds what this skill can't know, for every video in the project:
@@ -32,6 +37,10 @@ plus `pronounce` and `allowSpoken` entries that apply to every script.
 
 Commands: `npx lyceum <command>`. Projects created by `lyceum init` also have the same commands as npm
 scripts (`npm run narrate -- <slug>`).
+
+**Running unattended?** If nobody will review your work (CI, a scheduled job, `LYCEUM_UNATTENDED` set,
+or a user who says they won't review), read `references/unattended.md` first. It removes the review
+gates and says how to finish each video.
 
 If a command (or a session-start hook) prints that a newer Lyceum release is available (a line starting
 🎁), tell the user once, in a sentence that starts with 🎁, with the command it gives and the link to what
@@ -98,6 +107,15 @@ What makes a script work:
   - `narrate` refuses narration with an all-caps acronym (other than the everyday ones) or a known
     shortening (op, impl, config, repo, func, param, arg, env, dep, init, …). Fix the script.
     `allow_spoken:` in the frontmatter, or `allowSpoken` in the config, is for deliberate exceptions only.
+- **No emails, phone numbers or credentials in narration,** written or spoken ("name at example dot com",
+  a number read out digit by digit). Source material can hold them; the narration never should.
+  `narrate` refuses any it finds before anything is sent, with the scene and the match. Take it out of
+  the script. If the user wants one said, the exception is theirs to make: exact strings under
+  `allowSensitive` in `lyceum.config.json`. **Never add to or edit that list yourself:** ask the user. A
+  script's frontmatter can't hold exceptions.
+  - A false alarm, such as a website read out ("more at docs dot python dot org" sounds like an
+    address), may be reworded so it no longer reads like one: "the Python docs, on docs dot python dot
+    org". Never disguise a real address, number or key to get it past the check.
 - **Round long numbers in narration.** Speech-to-text writes "5,248" as digits, and the aligner can't
   match a spelled-out "five thousand two hundred and forty-eight". Say "just over five thousand" and put
   the exact figure on screen. Short numbers are fine on their own, but not run straight into another number.
@@ -114,9 +132,10 @@ wait. They may waive review ("I trust your script"). Respect that, but still sho
 ### 4. Narrate
 
 ```bash
-npx lyceum narrate <slug>                         # OpenAI gpt-4o-mini-tts, voice "cedar" (default)
+npx lyceum narrate <slug>                         # the project's voice (lyceum init sets it), else say
+npx lyceum narrate <slug> --provider say          # free macOS voice; nothing leaves the machine
+npx lyceum narrate <slug> --provider openai       # OpenAI gpt-4o-mini-tts, voice "cedar"
 npx lyceum narrate <slug> --provider gemini       # Google gemini-3.8-flash-tts, voice "Charon"
-npx lyceum narrate <slug> --provider say          # free macOS draft voice
 npx lyceum narrate <slug> --only <scene>          # one scene
 ```
 
@@ -124,14 +143,18 @@ This writes `narration.json` (durations, word timings, timeline) and `captions.s
 - **Cost and speed:** every paragraph is voiced at once, so narration takes about as long as the longest
   paragraph plus alignment, well under a minute. Clips are cached by a hash of voice and text, so only
   changed text is billed: roughly $0.15 per 10-minute video with OpenAI.
-- **Keys:** `OPENAI_KEY` (or `OPENAI_API_KEY`) and `GEMINI_API_KEY`, from the environment or the nearest
-  `.env` at or above the project.
+- **Keys:** `OPENAI_KEY` (or `OPENAI_API_KEY`) and `GEMINI_API_KEY`, from the environment or the
+  project's own `.env`. Lyceum never reads a `.env` above the project. If a key is missing, tell the
+  user; don't go looking for one elsewhere on the machine.
 - **Voice:** a script can pin a voice in frontmatter: `voice: { provider: gemini }`, or
-  `{ id: marin, instructions: … }` for another OpenAI voice. A voice's `instructions` direct its delivery
-  and are never spoken: Gemini takes them as a separate style and reads the narration verbatim.
-- **Allowed providers:** a project may list the only providers its narration can go to, under `providers`
-  in `lyceum.config.json`. If narrate refuses a provider, use an allowed one; adding a provider to the list
-  is the user's decision, never yours.
+  `{ provider: openai, id: marin, instructions: … }` for another OpenAI voice. With nothing named
+  (no `--provider`, script or project voice), narration uses `say`; a voice without a `provider` is
+  `say`'s too. A voice's `instructions` direct its delivery and are never spoken: Gemini takes them as a
+  separate style and reads the narration verbatim.
+- **Allowed providers:** `providers` in `lyceum.config.json` lists the only providers a project's
+  narration can go to. Until it's set, narrate sends nothing to a hosted voice (only the local `say`
+  runs). If narrate refuses a provider, use an allowed one. Setting the list, or adding a provider to it,
+  is the user's decision, never yours: ask them.
 - **Pins:** `voices` in `lyceum.config.json` overrides a provider's voice wherever it's used, e.g.
   `{ "openai": { "model": "gpt-4o-mini-tts-2025-12-15" } }`. Changing it re-voices every scene, so only
   change it when the user asks.
@@ -145,8 +168,8 @@ Why the OpenAI and Gemini paths are more involved:
   - appends a sentinel ("Okay.") and cuts the audio before it;
   - checks each paragraph against the script, and retries.
 - **No word timings:** neither voice reports when each word is spoken, so Lyceum transcribes each clip
-  with local Whisper and matches it to the script character by character. That's mlx-whisper, so Apple
-  Silicon only; its venv is created on first use.
+  with local Whisper and matches it to the script character by character: mlx-whisper on Apple Silicon,
+  faster-whisper on the CPU anywhere else. Its venv is created on first use.
 
 A "paragraph N still missing words" error after retries is a real failure: report it, and don't paper
 over it. Never switch providers silently.
@@ -280,6 +303,17 @@ without one, since the last commit to touch the video). It exits 1 if any video 
 video's own directory don't count. It runs on committed history, so a shallow clone needs
 `git fetch --unshallow` first.
 
+A video that explains one file, such as a README, names it under `explains:`. That file is always
+watched, but edits inside its video block don't count. If the project sets `coverage`, `stale` also
+lists:
+- `missing`: a covered file with no video, under a suggested slug. Start one with
+  `npx lyceum new <slug> "<Title>" --explains <path>`.
+- `orphaned`: a video whose file is gone.
+
+With a store configured, `npx lyceum publish <slug>` puts a rendered video at its fixed URLs, and
+`npx lyceum embed <slug>` shows it in its file. `npx lyceum ship <slug>` does all of it, behind gates:
+it publishes only a video that `stale` finds current and that narrates, type-checks and renders cleanly.
+
 A changed file doesn't mean a wrong video, and most diffs won't affect it. To revise a stale video:
 1. Read the diffs and commit messages against what the narration and `> Visual:` briefs claim. A claim
    is stale when it is now false, or when a name, value or snippet on screen no longer matches. A rename
@@ -299,6 +333,9 @@ A changed file doesn't mean a wrong video, and most diffs won't affect it. To re
     punctuation, so a repeated word needs `{ after }`.
   - A phrase missing from the narration throws, so a script edit can't silently desync a scene.
 - **Imports:** scenes import everything from `"#kit"`, never from kit files by path.
+- **No network:** the renderer serves a scene its bundle and the kit's fonts, and fails on any other
+  request (an image, font, fetch or socket from the internet, or another port on this machine), naming
+  the scene and the URL. Draw with the kit, or inline the asset (an SVG in JSX, a `data:` URL).
 - **Primitives:**
   - `Text` (manim-style write-on), `Fade`;
   - `Code`, with `codePoint` for placing things against columns, highlights, dim and strike;

@@ -15,14 +15,23 @@ bin/lyceum.mjs      the `lyceum` command: dispatches to tools/
 tools/              one file per command, plus paths.mjs (the layout, described once), slots.mjs
                     (machine-wide memory caps), script.mjs (script.md parsing), captions.mjs (SubRip),
                     video.mjs (a video as the renderer sees it: the title card, the scenes, its caption
-                    setting), align.py (Whisper word alignment) and chrome.mjs (the renderer: the kit's
-                    page, bundled with esbuild and drawn frame by frame in headless Chrome)
+                    setting), store.mjs (the project's bucket: clips by hash, scenes by fingerprint,
+                    published videos), coverage.mjs (which files must have a video, and the block that
+                    shows one in its file), sensitive.mjs with sensitive/ (the emails, phone numbers and
+                    credentials narration may not hold, with gitleaks's rules vendored), env.mjs (secrets
+                    from the environment or the project's .env), ci.mjs with ci-workflow.yml (unattended
+                    refreshes from GitHub Actions), align.py (Whisper word alignment) with aligners.mjs
+                    and aligners/ (the Whisper pins, and each backend's lockfile) and chrome.mjs (the
+                    renderer: the kit's page, bundled with esbuild and drawn frame by frame in headless
+                    Chrome)
 kit/                what scenes import as "#kit": timing (cue.tsx), the frame clock, primitives, theme
                     and the stage, plus the page the renderer draws them in (page.tsx)
 fonts/              CMU Serif and JetBrains Mono (SIL Open Font License)
 skills/lyceum/      the agent skill (Agent Skills format: SKILL.md + references/)
 .claude-plugin/     packages the skill as a Claude Code plugin and marketplace
-scripts/            maintainer scripts, not shipped: sync-version.mjs (run by `npm version`)
+scripts/            maintainer scripts, not shipped: sync-version.mjs (run by `npm version`),
+                    chrome-hashes.mjs (the pinned Chrome's SHA-256s), lock-aligners.mjs (the aligners'
+                    Python lockfiles) and update-gitleaks.mjs (the credential rules narrate checks for)
 .github/workflows/  release.yml: a pushed vX.Y.Z tag becomes a GitHub Release
 explainers/         a Lyceum project of videos about Lyceum, made with this checkout (`file:..`): the
                     README's video. Not part of the published package
@@ -43,13 +52,31 @@ explainers/         a Lyceum project of videos about Lyceum, made with this chec
 ## Rules for changes
 
 - **Keep the narration cache stable.** Clips are cached by a hash of the voice object and the spoken text.
-  Changing a default voice's fields, or their key order, re-bills every project's narration.
-- **The Whisper pin:** `WHISPER` in `tools/narrate.mjs` pins the mlx-whisper release and the model's
-  revision, and a project can override it under `whisper`. Each release gets its own venv in the Lyceum
-  home directory. Changing the pin doesn't re-align clips already cached, only new ones.
+  Changing a default voice's fields, or their key order, re-bills every project's narration. Changing
+  `DEFAULT_PROVIDER` in `tools/narrate.mjs` moves every project that names no provider to another voice;
+  narrate refuses that for a video already voiced with another provider rather than re-voice it.
+- **The Whisper pins:** `ALIGNERS` in `tools/aligners.mjs` pins each backend's release and model revision
+  (mlx-whisper on Apple Silicon, faster-whisper on any CPU), and a project can override either under
+  `whisper`. Each backend's whole dependency tree is locked, with hashes, in `tools/aligners/<backend>.txt`,
+  and its venv is installed from that alone. Regenerate the lockfile in the same change as a pin
+  (`node scripts/lock-aligners.mjs`): narrate refuses one that doesn't pin what `ALIGNERS` does. Each
+  release gets its own venv in the Lyceum home directory. Changing a pin, or the backend, doesn't re-align
+  clips already cached, only new ones. The two backends agree on word times to
+  within a frame (at 30 fps) for all but a clip's first word after leading silence.
 - **Render fingerprints:** they include every kit file and the pinned Chrome build (`CHROME_BUILD` in
   `tools/chrome.mjs`). Changing either re-renders every scene of every project once. That's correct, but
   say so in the commit.
+- **Chrome's hashes:** `CHROME_SHA256`, beside `CHROME_BUILD`, holds the SHA-256 of the build's archive
+  for each platform, and a download that doesn't match is deleted and never run. Bump the build with
+  `node scripts/chrome-hashes.mjs` in the same change: it rewrites the hashes from Google's bucket (which
+  publishes none of its own), and until they match the build, Chrome won't download at all.
+- **Store keys are content addresses.** A project's store files clips under narrate's hash and scenes
+  under render's fingerprint, so anything that changes either also misses every store. Nothing in the
+  normal flow deletes from a store.
+- **Scenes stay offline.** Chrome's proxy is the local server (`offline()` and `serve()` in
+  `tools/chrome.mjs`), which serves its own origin and refuses everything else; a refused request fails
+  the render with the scene and the URL. Keep every request going through it: don't add a bypass, and
+  keep WebRTC limited to the proxy (without that switch, it reaches STUN servers over UDP).
 - **The page is part of every scene's look.** Scenes were laid out with every element border-box and
   Chrome drawing at the render's scale, and `tools/chrome.mjs` sets both. A change to the page, its CSS or
   Chrome's switches can move every scene by a pixel: compare a scene's contact sheet before and after
@@ -65,12 +92,17 @@ explainers/         a Lyceum project of videos about Lyceum, made with this chec
 - **Keep the skill agent-neutral.** Don't name one agent's tools in `skills/`. Write "if your agent can
   run subagents…", not a specific tool name.
 - **Licenses:** Lyceum is MIT, and its dependencies should stay permissive (MIT, Apache 2.0, ISC, BSD).
+  gitleaks's rules (MIT) are vendored in `tools/sensitive/` with its license: update them with
+  `node scripts/update-gitleaks.mjs [<tag>]`, never by hand. A new release can add rules that flag
+  ordinary prose, so look at what a refresh changes before committing it.
   Don't copy code from Remotion, which Lyceum used to render with: its license isn't MIT.
 
 ## Releases
 
 Projects depend on a release, not on main: `lyceum init` writes `github:acfriedman/lyceum#semver:^X.Y.Z`
-(`tools/version.mjs`), and npm resolves the range against the repository's tags. Every six hours at
+(`tools/version.mjs`), and npm resolves the range against the repository's tags. The repository is the
+one that copy of Lyceum was installed from (`REPO`: the install's lockfile, else package.json's
+`repository`), so a fork's installs check, pin and link to the fork, not this repository. Every six hours at
 most, a `lyceum` command checks the tags and prints a line if a newer release exists; the skill tells the
 agent to pass it on. `lyceum version --hook` checks every time and prints only when one exists, with what
 to do about it: `lyceum init` runs it from a Claude Code session-start hook in the repository's

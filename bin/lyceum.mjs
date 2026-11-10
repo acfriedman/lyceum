@@ -9,11 +9,16 @@ const TOOLS = join(dirname(fileURLToPath(import.meta.url)), "..", "tools");
 
 const COMMANDS = {
   init: ["init.mjs", "make the current directory (or <dir>) a Lyceum project"],
-  new: ["new-video.mjs", 'start a video: <slug> "<Title>"'],
+  new: ["new-video.mjs", 'start a video: <slug> "<Title>" [--explains <path>]'],
   narrate: ["narrate.mjs", "voice a video's script: <video> [--provider openai|gemini|say] [--only <scene>]"],
   scenes: ["scenes.mjs", "scaffold scene files and per-scene briefs from the narration: <video>"],
   stills: ["stills.mjs", "a contact sheet of one scene: <video> <scene> [--at <s1,s2,…> | --every <s>]"],
   render: ["render.mjs", "render a video (or one scene): <video> [--scene <id> [--draft]]"],
+  publish: ["publish.mjs", "put a rendered video, its thumbnail and a player page in the project's store: <video>"],
+  ci: ["ci.mjs", "keep videos current from CI, unreviewed: init | plan [--max <n>] | run | land"],
+  ship: ["ship.mjs", "build a verified video and publish it, stopping at the first failed gate: <video>"],
+  embed: ["embed.mjs", "show a video in the file it explains (its explains:), as a thumbnail: <video>"],
+  store: ["store.mjs", "seed the project's store with a video's narration and scene clips: push <video>…"],
   stale: ["stale.mjs", "which videos' sources changed since they were checked: [<video>…] [--json] | --mark <video>…"],
   typecheck: ["typecheck.mjs", "type-check the project's scenes"],
   version: ["version-check.mjs", "this Lyceum's version, and whether a newer release is out: [--hook]"],

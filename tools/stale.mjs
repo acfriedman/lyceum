@@ -2,7 +2,7 @@
 // Which videos may be out of date: for each video, the commits since it was last checked that touched
 // the files its script names as sources.
 //
-//   lyceum stale [<video>…] [--json]        report; exits 1 if any video is stale
+//   lyceum stale [<video>…] [--json]        report; exits 1 if any video is stale, missing or orphaned
 //   lyceum stale --mark <video>… [--at <commit>]
 //                                           record that a video was checked against the current commit
 //
@@ -18,12 +18,19 @@
 // without one is measured from the last commit that touched its directory, so a new video needs no
 // setup. Changes to the video's own directory never count, nor do changes to another script that only
 // move its `verified:` commit.
+//
+// A video can name the one file it explains with `explains:` (a path from the repository's root, like a
+// README). That file is always among its sources, and changes inside its video block (see
+// coverage.mjs) don't count. With `coverage` in lyceum.config.json, the report also lists each covered
+// file that has no video (`missing`, under a suggested slug) and each video whose file is gone
+// (`orphaned`). Both count as needing work, like `stale`.
 
 import { execFileSync } from "node:child_process";
 import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { basename, dirname, join, relative } from "node:path";
 import { ROOT, VIDEOS, videoDir, videoSlug } from "./paths.mjs";
 import { frontmatter } from "./script.mjs";
+import { COVERAGE, coveredFiles, suggestSlug, withoutEmbed } from "./coverage.mjs";
 
 const args = process.argv.slice(2);
 const json = args.includes("--json");
@@ -126,6 +133,13 @@ function verifiedCommits(meta) {
 
 const isCommit = (repo, commit) => git(repo, ["cat-file", "-e", `${commit}^{commit}`], { quiet: true }) !== null;
 
+/** True if a file's only change between two commits is inside its video block. */
+function onlyEmbedMoved(repo, base, path) {
+  const before = git(repo, ["show", `${base}:${path}`], { quiet: true });
+  const after = git(repo, ["show", `HEAD:${path}`], { quiet: true });
+  return before !== null && after !== null && before !== after && withoutEmbed(before) === withoutEmbed(after);
+}
+
 /** True if every change to a script.md between two commits is to its `verified:` lines. */
 function onlyVerifiedMoved(repo, base, path) {
   const diff = git(repo, ["diff", "-U0", `${base}..HEAD`, "--", path]);
@@ -138,10 +152,15 @@ function check(video) {
   const slug = videoSlug(video);
   const script = join(dir, "script.md");
   const ownDir = relative(HOME_REPO, dir);
-  const report = { video: slug, status: "current", repos: [], unresolved: [], notes: [] };
+  const report = { video: slug, status: "current", explains: null, repos: [], unresolved: [], notes: [] };
   if (!existsSync(script)) return { ...report, status: "error", notes: ["no script.md"] };
 
   const { meta } = frontmatter(readFileSync(script, "utf8"), { strings: true });
+  const explains = typeof meta.explains === "string" && meta.explains.trim() ? meta.explains.trim().replace(/^\.\//, "") : null;
+  report.explains = explains;
+  if (explains && !existsSync(join(HOME_REPO, explains))) {
+    return { ...report, status: "orphaned", notes: [`${explains}, the file it explains, is gone`] };
+  }
   const verified = verifiedCommits(meta);
   const bases = new Map(verified);
   if (!bases.has(HOME_REPO)) {
@@ -151,6 +170,7 @@ function check(video) {
     report.notes.push(`no verified: commit, so measured from ${last.slice(0, 7)}, the last commit to touch the video`);
   }
   const { watched, unresolved } = resolveSources(meta.sources, bases);
+  if (explains && !watched.get(HOME_REPO).includes(explains)) watched.get(HOME_REPO).push(explains);
   report.unresolved = unresolved;
   if ([...watched.values()].every((paths) => paths.length === 0)) {
     report.notes.push("its sources name no paths to watch");
@@ -180,7 +200,8 @@ function check(video) {
         const [status, ...names] = line.split("\t");
         return { status: status[0], path: names.at(-1), from: names.length > 1 ? names[0] : undefined };
       })
-      .filter((file) => !(repo === HOME_REPO && file.path.endsWith("/script.md") && file.status === "M" && onlyVerifiedMoved(repo, base, file.path)));
+      .filter((file) => !(repo === HOME_REPO && file.path.endsWith("/script.md") && file.status === "M" && onlyVerifiedMoved(repo, base, file.path)))
+      .filter((file) => !(file.status === "M" && /\.(md|markdown)$/i.test(file.path) && onlyEmbedMoved(repo, base, file.path)));
     const head = git(repo, ["rev-parse", "HEAD"]);
     const touched = files.flatMap((file) => (file.from ? [file.from, file.path] : [file.path]));
     const commits = touched.length
@@ -236,6 +257,17 @@ if (mark) {
 let reports;
 try {
   reports = videos.map(check);
+  // Coverage is about the whole project, so it's only reported when no videos are named.
+  if (COVERAGE && named.length === 0) {
+    const explained = new Set(reports.map((report) => report.explains).filter(Boolean));
+    const taken = new Set(existsSync(VIDEOS) ? readdirSync(VIDEOS) : []);
+    for (const path of coveredFiles(HOME_REPO)) {
+      if (explained.has(path)) continue;
+      const slug = suggestSlug(path, HOME_REPO, taken);
+      taken.add(slug);
+      reports.push({ video: slug, status: "missing", explains: path, repos: [], unresolved: [], notes: [`${path} has no video`] });
+    }
+  }
 } catch (error) {
   console.error(error.message);
   process.exit(2);
@@ -258,8 +290,9 @@ if (json) {
       for (const file of repo.files) console.log(`  ${file.status} ${file.from ? `${at(file.from)} → ` : ""}${at(file.path)}`);
       for (const commit of repo.commits) console.log(`    ${commit.sha} ${commit.subject}`);
     }
-    for (const note of report.status === "error" || report.status === "new" ? report.notes.slice(1) : report.notes) console.log(`  note: ${note}`);
+    for (const note of ["error", "new", "missing", "orphaned"].includes(report.status) ? report.notes.slice(1) : report.notes) console.log(`  note: ${note}`);
     for (const word of report.unresolved) console.log(`  warning: source "${word}" names no file`);
   }
 }
-process.exit(reports.some((report) => report.status === "error") ? 2 : reports.some((report) => report.status === "stale") ? 1 : 0);
+const needsWork = (report) => ["stale", "missing", "orphaned"].includes(report.status);
+process.exit(reports.some((report) => report.status === "error") ? 2 : reports.some(needsWork) ? 1 : 0);

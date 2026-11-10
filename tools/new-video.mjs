@@ -1,16 +1,22 @@
 #!/usr/bin/env node
 // Starts a new video: a directory with a script.md template to fill in.
 //
-//   lyceum new <slug> "<Title>"
+//   lyceum new <slug> "<Title>" [--explains <path>]
+//
+// `--explains` names the one file the video explains (a path from the repository's root, such as a
+// README): `lyceum stale` watches it, and `lyceum embed` shows the video in it.
 //
 // Then write the script, narrate it, and run `lyceum scenes` to scaffold the scene components.
 
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { VIDEOS } from "./paths.mjs";
-const [slug, title = slug] = process.argv.slice(2);
-if (!slug || !/^[a-z0-9]+(-[a-z0-9]+)*$/.test(slug)) {
-  console.error('usage: lyceum new <kebab-slug> "<Title>"');
+const argv = process.argv.slice(2);
+const at = argv.indexOf("--explains");
+const explains = at >= 0 ? argv[at + 1] : null;
+const [slug, title = slug] = argv.filter((_, i) => at < 0 || (i !== at && i !== at + 1));
+if (!slug || !/^[a-z0-9]+(-[a-z0-9]+)*$/.test(slug) || (at >= 0 && !explains)) {
+  console.error('usage: lyceum new <kebab-slug> "<Title>" [--explains <path>]');
   process.exit(2);
 }
 const dir = join(VIDEOS, slug);
@@ -34,7 +40,7 @@ pronounce: {}
 # theme: paper
 # The files this video explains, one per line: \`- path (what the video takes from it)\`.
 # \`lyceum stale\` watches them; \`lyceum stale --mark ${slug}\` records the commit they were checked at.
-sources: []
+sources: []${explains ? `\n# The one file this video explains: always watched, and \`lyceum embed ${slug}\` shows the video in it.\nexplains: ${JSON.stringify(explains)}` : ""}
 ---
 
 <!--

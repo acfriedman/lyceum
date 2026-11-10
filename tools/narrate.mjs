@@ -2,33 +2,44 @@
 // Narrates a video's script: one audio clip per scene, with word timings, plus the timeline the
 // composition and the captions are laid out from.
 //
-//   lyceum narrate <video> [--provider openai|gemini|say] [--only <scene-id>]
+//   lyceum narrate <video> [--provider say|openai|gemini] [--only <scene-id>]
 //
 // Each clip is cached under .cache/narration by a hash of everything that shapes the audio (provider,
 // voice, model, settings, spoken text), so re-running after a script edit only pays for the scenes
 // whose narration changed. Every clip is brought to the same loudness (LOUDNESS), so separate takes
 // don't jump in volume. Keys (OPENAI_KEY or OPENAI_API_KEY, GEMINI_API_KEY) come from the environment or
-// from the nearest .env walking up from the project.
+// from the project's own .env (see env.mjs).
 //
-// The default voice is OpenAI's gpt-4o-mini-tts "cedar". A script picks another with frontmatter
-// `voice: { provider, id, … }`; fields override that provider's defaults below. Word timings come from
+// The default voice is macOS's say, which runs on this machine: narration goes nowhere unless a project
+// or script picks a hosted voice with `voice: { provider, id, … }` (`lyceum init` writes the one chosen
+// there). A voice's fields override that provider's defaults below. Word timings come from
 // align.py (beside this file), which derives them with local Whisper (a Python venv shared by every
 // project, under the Lyceum home directory, created on first use).
 //
-// The project's lyceum.config.json can set a default `voice`, pin each provider's voice under `voices`
-// (its model, say), list the only `providers` its narration may be sent to, and add `pronounce` and
-// `allowSpoken` entries that apply to every script; a script's own frontmatter wins.
+// The project's lyceum.config.json lists the only `providers` its narration may be sent to: until it
+// does, nothing is sent to a hosted voice. It can also set a default `voice`, pin each provider's voice
+// under `voices` (its model, say), and add `pronounce` and `allowSpoken` entries that apply to every
+// script; a script's own frontmatter wins.
+//
+// Nothing is sent that holds a sensitive string (an email, a phone number or a credential, written or
+// spoken: see sensitive.mjs), whatever the provider, since the text also ends up in the captions. The
+// only exceptions are exact strings the project lists under `allowSensitive`, never a script's
+// frontmatter, and each one used is recorded in narration.json.
 
 import { createHash } from "node:crypto";
 import { execFile, execFileSync, spawnSync } from "node:child_process";
+import { ALIGNERS, PYTHON, lock, specs } from "./aligners.mjs";
 import { withSlot } from "./slots.mjs";
+import { secret } from "./env.mjs";
+import { fetchNarration, pushNarration } from "./store.mjs";
 import { promisify } from "node:util";
 import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import { toSrt } from "./captions.mjs";
+import { describe, findSensitive } from "./sensitive.mjs";
 import { parseScript, spokenText } from "./script.mjs";
-import { CACHE as CACHE_ROOT, CONFIG, CONFIG_FILE, HOME, ROOT, preparePublic, videoDir as resolveVideoDir, videoSlug } from "./paths.mjs";
+import { CACHE as CACHE_ROOT, CONFIG, CONFIG_FILE, ENGINE, HOME, ROOT, preparePublic, videoDir as resolveVideoDir, videoSlug } from "./paths.mjs";
 
 const CACHE = join(CACHE_ROOT, "narration");
 
@@ -70,12 +81,17 @@ const VOICES = {
   say: { provider: "say", id: "Samantha", rate: 180 },
 };
 
+// The provider when nothing names one: the local voice, so nothing is sent anywhere unless someone chose
+// to send it. A `voice:` without a `provider` is this provider's voice too.
+const DEFAULT_PROVIDER = "say";
+
 /**
- * The voice a run uses: `--provider` wins, then the script's `voice:`, then OpenAI. Its defaults are
- * that provider's VOICES entry with the project's `voices` entry for it on top, whichever way the
- * provider was chosen. Overrides keep VOICES' key order, so a project without them keeps its cache.
+ * The voice a run uses: `--provider` wins, then the script's `voice:` (else the project's), then
+ * DEFAULT_PROVIDER. Its defaults are that provider's VOICES entry with the project's `voices` entry for
+ * it on top, whichever way the provider was chosen. Overrides keep VOICES' key order, so a project
+ * without them keeps its cache. `from` names where `scripted` came from, for errors.
  */
-function resolveVoice(cliProvider, scripted = {}) {
+function resolveVoice(cliProvider, scripted = {}, from = CONFIG_FILE) {
   const expected = `expected ${Object.keys(VOICES).join(", ")}`;
   for (const name of Object.keys(CONFIG.voices)) {
     if (!VOICES[name]) throw new Error(`${CONFIG_FILE}: unknown provider "${name}" under voices (${expected})`);
@@ -86,29 +102,54 @@ function resolveVoice(cliProvider, scripted = {}) {
       if (!VOICES[name]) throw new Error(`${CONFIG_FILE}: unknown provider "${name}" under providers (${expected})`);
     }
   }
-  const provider = cliProvider ?? scripted.provider ?? "openai";
+  const provider = cliProvider ?? scripted.provider ?? DEFAULT_PROVIDER;
   if (!VOICES[provider]) throw new Error(`unknown provider "${provider}" (${expected})`);
   const base = { ...VOICES[provider], ...CONFIG.voices[provider], provider };
   // The script's overrides describe its own provider's voice; they don't carry over to another one.
-  return (scripted.provider ?? "openai") === provider ? { ...base, ...scripted, provider } : base;
+  if ((scripted.provider ?? DEFAULT_PROVIDER) !== provider) return base;
+  // A voice written for a hosted provider before say became the default names none: say would ignore
+  // its delivery and model, so it says so rather than read the script in another voice.
+  const hosted = ["instructions", "model"].filter((field) => field in scripted && !(field in VOICES[provider]));
+  if (!scripted.provider && hosted.length) {
+    throw new Error(
+      `voice: in ${from} has ${hosted.join(" and ")} but no provider, and a voice without one is ${provider}'s, ` +
+        `which takes neither. Add the provider it was written for, e.g. voice: { provider: openai, … }.`,
+    );
+  }
+  return { ...base, ...scripted, provider };
 }
 
 /** Where a run's provider was chosen, for messages: the flag, the script, the project, or the default. */
 function providerChoice(cliProvider, scriptVoice, video) {
   if (cliProvider) return "--provider";
-  if (scriptVoice) return scriptVoice.provider ? `voice: in ${video}/script.md` : "Lyceum's default (a script voice: without a provider is OpenAI's)";
+  if (scriptVoice) return scriptVoice.provider ? `voice: in ${video}/script.md` : `Lyceum's default, ${DEFAULT_PROVIDER} (voice: in ${video}/script.md names no provider)`;
   if (CONFIG.voice?.provider) return `voice in ${CONFIG_FILE}`;
-  return "Lyceum's default";
+  return `Lyceum's default, ${DEFAULT_PROVIDER}`;
 }
+
+// Voices that run on this machine: their narration goes nowhere, so they need no `providers` entry
+// while a project hasn't set one.
+const LOCAL = new Set(["say"]);
 
 /**
  * A project's `providers` lists where its narration may be sent: nothing is voiced by any other
- * provider. Clips already cached never leave the machine, so they're reused whatever their provider;
- * only `toVoice`, the scenes that would be voiced now, are refused.
+ * provider, and until the project sets it, by no hosted provider at all (a local voice still runs).
+ * Clips already cached never leave the machine, so they're reused whatever their provider; only
+ * `toVoice`, the scenes that would be voiced now, are refused.
  */
 function checkProviderAllowed(provider, chosenBy, toVoice) {
   const allowed = CONFIG.providers;
-  if (allowed === undefined || allowed.includes(provider) || toVoice.length === 0) return;
+  if (toVoice.length === 0) return;
+  if (allowed === undefined) {
+    if (LOCAL.has(provider)) return;
+    throw new Error(
+      `${CONFIG_FILE} doesn't say where narration may be sent, so nothing was sent: ${toVoice.join(", ")} ` +
+        `would go to "${provider}" (chosen by ${chosenBy}).\n` +
+        `List the voice providers this project may use in ${join(ROOT, CONFIG_FILE)}, e.g. "providers": ["${provider}"]. ` +
+        `Known providers: ${Object.keys(VOICES).join(", ")}; ${[...LOCAL].join(", ")} runs on this machine and is allowed without it.`,
+    );
+  }
+  if (allowed.includes(provider)) return;
   throw new Error(
     `provider "${provider}" (chosen by ${chosenBy}) isn't allowed in this project: ${CONFIG_FILE} allows ` +
       `${allowed.length ? allowed.join(", ") : "none"}, and ${toVoice.join(", ")} would be sent to it.\n` +
@@ -124,49 +165,57 @@ function parseArgs(argv) {
     else args.dir = argv[i];
   }
   if (!args.dir) {
-    console.error("usage: lyceum narrate <video> [--provider openai|gemini|say] [--only <scene-id>]");
+    console.error("usage: lyceum narrate <video> [--provider say|openai|gemini] [--only <scene-id>]");
     process.exit(2);
   }
   return args;
 }
 
-/** A secret from the environment, or from the nearest .env walking up from the project. */
-function secret(...names) {
-  for (const name of names) if (process.env[name]) return process.env[name];
-  for (let dir = ROOT; dir !== dirname(dir); dir = dirname(dir)) {
-    const env = join(dir, ".env");
-    if (!existsSync(env)) continue;
-    for (const name of names) {
-      const match = readFileSync(env, "utf8").match(new RegExp(`^${name}=(.+)$`, "m"));
-      if (match) return match[1].trim().replace(/^["']|["']$/g, "");
-    }
-  }
-  throw new Error(`${names.join(" / ")} is not set, and no .env at or above ${ROOT} defines it`);
-}
-
-// The Whisper that aligns narration, pinned like the renderer's Chrome: the mlx-whisper release and the
-// model's revision. A project can pin others under `whisper` in lyceum.config.json. Each release gets
-// its own venv and each revision its own download, so changing a pin never reuses the old one. Clips
-// already cached keep the word timings they were accepted with.
-const WHISPER = {
-  version: "0.4.3",
-  model: "mlx-community/whisper-large-v3-turbo",
-  revision: "a4aaeec0636e6fef84abdcbe3544cb2bf7e9f6fb",
-  ...CONFIG.whisper,
-};
+// The Whisper that aligns narration: ALIGNERS (tools/aligners.mjs) pins, per backend, the package's
+// release, its whole dependency tree (a lockfile with hashes) and the model's revision.
+//
+// The backend is LYCEUM_ALIGNER, else `whisper.backend` in lyceum.config.json, else mlx on Apple
+// Silicon and faster-whisper elsewhere. A project can pin either under `whisper.mlx` or
+// `whisper["faster-whisper"]` (a flat `whisper: { version, model, revision }` still pins mlx). Each
+// release gets its own venv and each revision its own download, so changing a pin never reuses the old
+// one. A project that pins another release (or other `requires`) than ALIGNERS gets it resolved fresh,
+// since Lyceum's lockfile is for its own pins. The clip cache's key leaves the aligner out: clips already
+// cached keep the word timings they were accepted with, whichever backend timed them.
+const ALIGNER = process.env.LYCEUM_ALIGNER || CONFIG.whisper?.backend || (process.platform === "darwin" && process.arch === "arm64" ? "mlx" : "faster-whisper");
+if (!ALIGNERS[ALIGNER]) throw new Error(`unknown aligner "${ALIGNER}": use ${Object.keys(ALIGNERS).join(" or ")}`);
+const WHISPER = (() => {
+  const { backend, mlx, "faster-whisper": faster, ...flat } = CONFIG.whisper ?? {};
+  return { ...ALIGNERS[ALIGNER], ...(ALIGNER === "mlx" ? { ...flat, ...mlx } : faster) };
+})();
 const ALIGN_PY = join(dirname(fileURLToPath(import.meta.url)), "align.py");
 
-/** The Python that runs align.py: a venv with the pinned mlx-whisper, created with uv on first use. */
+let alignerBin;
+/**
+ * The Python that runs align.py: a venv with the pinned aligner, created with uv on first use. It's
+ * installed from the backend's lockfile, every package checked against its hash (a mismatch fails the
+ * install), unless the project pins another release than the lockfile's.
+ */
 function alignerPython() {
-  const venv = join(HOME, `whisper-${WHISPER.version}`);
+  if (alignerBin) return alignerBin;
+  // mlx keeps its original venv name, so existing machines reuse theirs.
+  const venv = join(HOME, ALIGNER === "mlx" ? `whisper-${WHISPER.version}` : `${WHISPER.package}-${WHISPER.version}`);
   const installed = join(venv, ".installed"); // written last, so an interrupted install is redone
-  if (!existsSync(installed)) {
-    console.log(`  creating ${venv} (mlx-whisper ${WHISPER.version}) for word alignment…`);
-    execFileSync("uv", ["venv", "-q", "--clear", "--python", "3.12", venv], { stdio: "inherit" });
-    execFileSync("uv", ["pip", "install", "-q", `mlx-whisper==${WHISPER.version}`], { stdio: "inherit", env: { ...process.env, VIRTUAL_ENV: venv } });
-    writeFileSync(installed, `mlx-whisper==${WHISPER.version}\n`);
+  const wanted = specs(WHISPER);
+  const locked = wanted.join("\n") === specs(ALIGNERS[ALIGNER]).join("\n") ? lock(ALIGNER) : null;
+  // What the venv holds: the lockfile it was installed from, by hash, or the specs it was resolved from.
+  const stamp = locked ? `${relative(ENGINE, locked.path)} sha256:${locked.sha256}\n` : `${wanted.join("\n")}\n`;
+  if (!existsSync(installed) || readFileSync(installed, "utf8") !== stamp) {
+    console.log(`  creating ${venv} (${wanted.join(", ")}${locked ? ", from its lockfile" : ""}) for word alignment…`);
+    if (!locked) {
+      console.log(`  ${CONFIG_FILE} pins ${wanted.join(", ")}, which Lyceum's lockfile doesn't: resolving it fresh, without hashes`);
+    }
+    const env = { ...process.env, VIRTUAL_ENV: venv };
+    execFileSync("uv", ["venv", "-q", "--clear", "--python", PYTHON, venv], { stdio: "inherit" });
+    if (locked) execFileSync("uv", ["pip", "sync", "-q", "--require-hashes", locked.path], { stdio: "inherit", env });
+    else execFileSync("uv", ["pip", "install", "-q", ...wanted], { stdio: "inherit", env });
+    writeFileSync(installed, stamp);
   }
-  return join(venv, "bin", "python");
+  return (alignerBin = join(venv, "bin", "python"));
 }
 
 let modelDir;
@@ -191,7 +240,7 @@ async function align(text, audioPath, sentinel) {
   const textPath = audioPath.replace(/\.\w+$/, ".txt");
   writeFileSync(textPath, text);
   const { stdout } = await whisperSlot(() =>
-    promisify(execFile)(alignerPython(), [ALIGN_PY, audioPath, textPath, whisperModel(), ...(sentinel ? [sentinel] : [])], {
+    promisify(execFile)(alignerPython(), [ALIGN_PY, "--backend", ALIGNER, audioPath, textPath, whisperModel(), ...(sentinel ? [sentinel] : [])], {
       maxBuffer: 16 * 1024 * 1024,
     }),
   );
@@ -258,6 +307,7 @@ async function cachedSpeech(request, attempt, extension, fetchAudio) {
 function openAISpeech(voice, input, attempt) {
   const request = { model: voice.model, voice: voice.id, input, instructions: voice.instructions, response_format: "mp3" };
   return cachedSpeech(request, attempt, "mp3", async () => {
+    assertSendable(request, "OpenAI");
     const response = await fetch("https://api.openai.com/v1/audio/speech", {
       method: "POST",
       headers: { Authorization: `Bearer ${secret("OPENAI_KEY", "OPENAI_API_KEY")}`, "Content-Type": "application/json" },
@@ -278,6 +328,7 @@ function geminiSpeech(voice, input, attempt) {
     generation_config: { speech_config: [{ voice: voice.id }] },
   };
   return cachedSpeech(request, attempt, "wav", async () => {
+    assertSendable(request, "Gemini");
     const response = await fetch("https://generativelanguage.googleapis.com/v1beta/interactions", {
       method: "POST",
       headers: { "x-goog-api-key": secret("GEMINI_API_KEY"), "Content-Type": "application/json" },
@@ -302,7 +353,7 @@ function geminiSpeech(voice, input, attempt) {
  * take, so they differ), then the paragraphs are joined with a short pause.
  */
 const byParagraph = (speech) => async (text, voice, mp3Path, label) => {
-  const paragraphs = text.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean);
+  const paragraphs = paragraphsOf(text);
   const parts = await Promise.all(
     paragraphs.map(async (paragraph, index) => {
       const partPath = mp3Path.replace(/\.mp3$/, `.p${index}.mp3`);
@@ -364,13 +415,56 @@ function joinParts(parts, mp3Path) {
 }
 
 async function synthesizeSay(text, voice, mp3Path) {
+  assertSendable({ text }, "say");
   const aiff = mp3Path.replace(/\.mp3$/, ".aiff");
-  execFileSync("say", ["-v", voice.id, "-r", String(voice.rate), "-o", aiff, text]);
+  try {
+    execFileSync("say", ["-v", voice.id, "-r", String(voice.rate), "-o", aiff, text]);
+  } catch (error) {
+    if (error.code !== "ENOENT") throw error;
+    throw new Error(
+      `say is macOS's voice, and this machine doesn't have it: to narrate here, name a hosted voice ` +
+        `("voice" and "providers" in ${CONFIG_FILE}, or --provider openai|gemini)`,
+    );
+  }
   execFileSync("ffmpeg", ["-y", "-loglevel", "error", "-i", aiff, "-ar", "44100", "-b:a", "192k", mp3Path]);
   return (await align(text, mp3Path)).words;
 }
 
 const SYNTHESIZE = { openai: byParagraph(openAISpeech), gemini: byParagraph(geminiSpeech), say: synthesizeSay };
+
+/** A scene's paragraphs: a hosted voice reads each in a request of its own (see byParagraph). */
+function paragraphsOf(text) {
+  return text.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean);
+}
+
+/** The spoken text of every request voicing a scene sends: each paragraph with SENTINEL for a hosted
+ *  voice, the whole scene for say. (A hosted voice's instructions go with each one too.) */
+function requestTexts(text, provider) {
+  return provider === "say" ? [text] : paragraphsOf(text).map((paragraph) => `${paragraph} ${SENTINEL}`);
+}
+
+// Exact strings the project lets through the sensitive-string check: only from lyceum.config.json, which
+// the user controls, never from a script, which an agent writes and could approve its own exceptions in.
+const ALLOW_SENSITIVE = new Set(CONFIG.allowSensitive);
+
+/** The sensitive strings in some text: those the project didn't except (`refused`), and those it did. */
+function sensitive(texts) {
+  const found = [...new Map(texts.flatMap((text) => findSensitive(text)).map((f) => [f.match, f])).values()];
+  return { refused: found.filter((f) => !ALLOW_SENSITIVE.has(f.match)), excepted: found.filter((f) => ALLOW_SENSITIVE.has(f.match)) };
+}
+
+/** The last check before a request goes out: every string in it, the text and the voice's instructions.
+ *  Each scene was checked before any was voiced, so this only stops what slipped past that. */
+function assertSendable(request, provider) {
+  const strings = [];
+  const collect = (value) => {
+    if (typeof value === "string") strings.push(value);
+    else if (value && typeof value === "object") Object.values(value).forEach(collect);
+  };
+  collect(request);
+  const { refused } = sensitive(strings);
+  if (refused.length) throw new Error(`refusing to send ${provider} a request with ${refused.map(describe).join(", ")}`);
+}
 
 // Narration says things in full: no acronyms, no shortenings. Listeners can't see the spelling, and
 // "op" or "GCD" makes them decode instead of follow. Checked before anything is billed.
@@ -405,8 +499,15 @@ async function main() {
     allow_spoken: [...CONFIG.allowSpoken, ...(scripted.allow_spoken ?? [])],
   };
 
+  if (scripted.allowSensitive !== undefined || scripted.allow_sensitive !== undefined) {
+    throw new Error(
+      `${video}/script.md: a script can't list exceptions to the sensitive-string check; only the user can, ` +
+        `under allowSensitive in ${CONFIG_FILE}`,
+    );
+  }
+
   const timing = { ...DEFAULTS, ...(meta.timing ?? {}) };
-  const voice = resolveVoice(args.provider, meta.voice);
+  const voice = resolveVoice(args.provider, meta.voice, scripted.voice ? `${video}/script.md` : CONFIG_FILE);
   const provider = voice.provider;
 
   mkdirSync(CACHE, { recursive: true });
@@ -419,17 +520,57 @@ async function main() {
 
   // Lint every scene that would be newly voiced (cached scenes were already accepted), and check
   // that its provider is allowed, before anything is sent.
+  const clipHash = (text) => createHash("sha256").update(JSON.stringify({ provider, voice, text })).digest("hex").slice(0, 16);
+  const cached = (hash) => existsSync(join(CACHE, `${hash}.mp3`)) && existsSync(join(CACHE, `${hash}.json`));
+
+  // A clip voiced on another machine (or in CI) comes from the project's store, when it has one.
+  const fetched = new Set();
+  await Promise.all(
+    scenes.map(async (scene) => {
+      if (args.only && args.only !== scene.id) return;
+      const hash = clipHash(spokenText(scene.narration, meta.pronounce));
+      if (!cached(hash) && (await fetchNarration(hash, -LOUDNESS.lufs))) fetched.add(scene.id);
+    }),
+  );
+
   const allowed = new Set(meta.allow_spoken ?? []);
   const problems = [];
+  const leaks = [];
+  const exceptions = []; // each allowSensitive entry used, and where: recorded in narration.json
   const toVoice = [];
+  // A hosted voice's instructions go out with every request, so they matter once anything is voiced.
+  const instructions = provider !== "say" && voice.instructions ? sensitive([voice.instructions]) : { refused: [], excepted: [] };
+  exceptions.push(...instructions.excepted.map((f) => ({ in: "voice instructions", match: f.match })));
   for (const scene of scenes) {
-    if (args.only && args.only !== scene.id) continue;
     const text = spokenText(scene.narration, meta.pronounce);
-    const hash = createHash("sha256").update(JSON.stringify({ provider, voice, text })).digest("hex").slice(0, 16);
-    if (existsSync(join(CACHE, `${hash}.mp3`)) && existsSync(join(CACHE, `${hash}.json`))) continue;
+    // Every scene's exceptions are recorded, voiced now or not, so narration.json lists them all.
+    const { refused, excepted } = sensitive(requestTexts(text, provider));
+    exceptions.push(...excepted.map((f) => ({ in: scene.id, match: f.match })));
+    if (args.only && args.only !== scene.id) continue;
+    if (cached(clipHash(text))) continue;
     toVoice.push(scene.id);
+    if (refused.length) leaks.push(`  ${scene.id}: ${refused.map(describe).join(", ")}`);
     const found = shortenings(text, allowed);
     if (found.length) problems.push(`  ${scene.id}: ${found.join(", ")}`);
+  }
+  // A video voiced with another provider while that was Lyceum's default (OpenAI, until say) names none,
+  // and would otherwise be voiced again, every scene, in another voice.
+  if (!args.provider && !meta.voice?.provider && previous?.provider && previous.provider !== provider && toVoice.length) {
+    throw new Error(
+      `${video} was narrated with ${previous.provider} (see its narration.json), but nothing names a provider now, and ` +
+        `Lyceum's default is ${provider}: every scene would be voiced again, in another voice. To keep its voice, set ` +
+        `"voice": { "provider": "${previous.provider}" } in ${CONFIG_FILE}, and list it under "providers". To move it to ` +
+        `${provider}, narrate with --provider ${provider}.`,
+    );
+  }
+  if (toVoice.length && instructions.refused.length) leaks.unshift(`  the voice's instructions: ${instructions.refused.map(describe).join(", ")}`);
+  if (leaks.length) {
+    throw new Error(
+      `narration can't contain emails, phone numbers or credentials: it would be sent to ${provider}, and ` +
+        `written into the captions. Nothing was sent.\n${leaks.join("\n")}\n` +
+        `Take them out of script.md (credentials are shown shortened). If one really must be said, only the user can ` +
+        `allow it, by listing the exact string under allowSensitive in ${CONFIG_FILE}.`,
+    );
   }
   if (problems.length) {
     throw new Error(
@@ -440,16 +581,16 @@ async function main() {
   checkProviderAllowed(provider, providerChoice(args.provider, scripted.voice, video), toVoice);
 
   // Every scene that needs voicing is voiced at once; each scene's paragraphs run concurrently too.
-  whisperModel(); // create the venv and fetch the model once, before any parallel use
+  if (toVoice.length) whisperModel(); // create the venv and fetch the model once, before any parallel use
   const out = await Promise.all(
     scenes.map(async (scene) => {
       const text = spokenText(scene.narration, meta.pronounce);
-      const shape = { provider, voice, text };
-      const hash = createHash("sha256").update(JSON.stringify(shape)).digest("hex").slice(0, 16);
+      const hash = clipHash(text);
       const cachedMp3 = join(CACHE, `${hash}.mp3`);
       const cachedWords = join(CACHE, `${hash}.json`);
 
       const skip = args.only && args.only !== scene.id;
+      let voiced = false;
       if (!existsSync(cachedMp3) || !existsSync(cachedWords)) {
         if (skip) {
           const kept = previous?.scenes.find((s) => s.id === scene.id);
@@ -459,15 +600,18 @@ async function main() {
         console.log(`  narrating ${scene.id} (${text.length} chars, ${provider})…`);
         const words = await SYNTHESIZE[provider](text, voice, cachedMp3, scene.id);
         writeFileSync(cachedWords, JSON.stringify(words));
+        voiced = true;
         console.log(`  done      ${scene.id}`);
       } else {
-        console.log(`  cached    ${scene.id}`);
+        console.log(`  ${fetched.has(scene.id) ? "fetched" : "cached "}   ${scene.id}`);
       }
 
       // Every provider's clip is brought to LOUDNESS beside the cached one, so the level can change
       // without voicing anything again.
       const leveled = join(CACHE, `${hash}.lufs${-LOUDNESS.lufs}.mp3`);
       if (!existsSync(leveled)) normalizeLoudness(cachedMp3, leveled);
+      // The leveled clip goes up too: its duration sets the timeline, so every machine must play the same one.
+      if (voiced) await pushNarration(hash);
       const audio = `${video}/${scene.id}.mp3`;
       copyFileSync(leveled, join(publicRoot, audio));
       return {
@@ -498,6 +642,7 @@ async function main() {
     width: timing.width,
     height: timing.height,
     frames: from,
+    ...(exceptions.length ? { sensitiveExceptions: exceptions } : {}),
     scenes: out,
   };
   writeFileSync(join(videoDir, "narration.json"), JSON.stringify(narration, null, 1) + "\n");

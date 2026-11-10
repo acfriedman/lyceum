@@ -2,6 +2,12 @@
   "videos": "videos",
   "cache": ".cache",
   "project": "project.md",
+  "voice": {
+    "provider": "openai"
+  },
+  "providers": [
+    "openai"
+  ],
   "pronounce": {},
   "allowSpoken": []
 }

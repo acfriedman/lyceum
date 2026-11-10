@@ -49,20 +49,27 @@ export function findProject(from = process.env.LYCEUM_PROJECT ?? process.cwd()) 
  *   cache        the regenerable cache directory (default ".cache")
  *   project      the project's guide, a markdown file the agent skill reads first: audience, ground
  *                truth, house rules, review and delivery (read from `brief` in older projects)
- *   voice        the default narration voice, as a script's `voice:` frontmatter would set it
+ *   voice        the default narration voice, as a script's `voice:` frontmatter would set it (unset: say;
+ *                `lyceum init` writes the voice chosen there)
  *   voices       per provider, overrides of its default voice (e.g. a pinned model), however the
  *                provider is chosen
- *   providers    the only voice providers narration may be sent to (unset: any)
- *   whisper      overrides of the pinned Whisper that aligns narration: { version, model, revision }
+ *   providers    the only voice providers narration may be sent to (unset: none but the local `say`).
+ *                `lyceum init` writes the voice chosen there, say unless another is picked
+ *   whisper      the Whisper that aligns narration: { backend, mlx: { version, model, revision },
+ *                "faster-whisper": { … } } (see ALIGNERS in aligners.mjs)
+ *   store        an S3-compatible bucket for caches and published videos (see store.mjs)
+ *   coverage     which repository files must each have a video: { explains, exclude } (see coverage.mjs)
  *   pronounce    written form → spoken form, for every script (a script's own map wins)
  *   allowSpoken  words the acronym check lets through, for every script
+ *   allowSensitive  exact strings the sensitive-string check lets through (emails, phone numbers,
+ *                credentials: see sensitive.mjs). Only here, never in a script, and only the user adds them
  *   captions     "track" (a subtitle track viewers turn on) or "burned" (drawn into the picture), for
  *                every video (a script's own `captions:` wins)
  *   theme        the kit theme every video is drawn in: "dark" or "paper" (a script's own `theme:` wins)
  */
 export function loadConfig(root) {
   const raw = JSON.parse(readFileSync(join(root, CONFIG_FILE), "utf8"));
-  const config = { videos: "videos", cache: ".cache", voices: {}, whisper: {}, pronounce: {}, allowSpoken: [], captions: "track", theme: "dark", ...raw };
+  const config = { videos: "videos", cache: ".cache", voices: {}, whisper: {}, pronounce: {}, allowSpoken: [], allowSensitive: [], captions: "track", theme: "dark", ...raw };
   config.project ??= raw.brief ?? "project.md";
   return config;
 }

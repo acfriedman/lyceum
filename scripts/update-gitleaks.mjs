@@ -3,6 +3,10 @@
 // sensitive strings (tools/sensitive.mjs), with gitleaks's license beside them. gitleaks is MIT; its
 // rules are maintained upstream, so update them from a release rather than editing the JSON.
 //
+// Lyceum copies the rules rather than running the gitleaks binary, so the check needs nothing installed
+// and gives the same answer on every machine and in CI (see tools/sensitive.mjs). The cost is this
+// script: rules arrive when a maintainer refreshes them, not when gitleaks releases them.
+//
 //   node scripts/update-gitleaks.mjs [<tag>]    a gitleaks release, e.g. v8.30.1 (default: the latest)
 //
 // Needs uv (Python's tomllib reads the TOML). The rules are converted from Go's regular expressions to

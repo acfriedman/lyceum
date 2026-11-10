@@ -8,7 +8,11 @@
 // - by the prefixes of well-known keys (AWS, GitHub, Google, OpenAI, …), so the error can name one;
 // - by gitleaks's maintained rules (MIT), for the hundreds of services Lyceum doesn't name itself:
 //   vendored in sensitive/gitleaks.json by scripts/update-gitleaks.mjs, and applied the way gitleaks
-//   applies them (each rule's keywords, pattern, entropy floor and allowlists, then the global allowlist);
+//   applies them (each rule's keywords, pattern, entropy floor and allowlists, then the global allowlist).
+//   The rules are copied in, not the gitleaks binary run: a check that stops narration has to give the
+//   same answer on every machine and in CI, which an optional binary wouldn't, and requiring one would
+//   add an install beside Node, ffmpeg and uv for every author and runner. Copied, the rules need nothing
+//   installed or downloaded, check each request's text in-process, and change only in a reviewed diff;
 // - by shape: narration is prose, which never holds a long, random-looking run of letters and digits,
 //   so any such token is taken for a key, whoever issued it.
 

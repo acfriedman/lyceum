@@ -17,20 +17,18 @@ tools/              one file per command, plus paths.mjs (the layout, described 
                     video.mjs (a video as the renderer sees it: the title card, the scenes, its caption
                     setting), store.mjs (the project's bucket: clips by hash, scenes by fingerprint,
                     published videos), coverage.mjs (which files must have a video, and the block that
-                    shows one in its file), sensitive.mjs with sensitive/ (the emails, phone numbers and
-                    credentials narration may not hold: gitleaks's rules, vendored), env.mjs (secrets
-                    from the environment or the project's .env), ci.mjs with ci-workflow.yml (unattended
-                    refreshes from GitHub Actions), align.py (Whisper word alignment) and chrome.mjs (the
-                    renderer: the kit's page, bundled with esbuild and drawn frame by frame in headless
-                    Chrome)
+                    shows one in its file), sensitive.mjs (the emails, phone numbers and credentials
+                    narration may not hold), env.mjs (secrets from the environment or the project's
+                    .env), ci.mjs with ci-workflow.yml (unattended refreshes from GitHub Actions),
+                    align.py (Whisper word alignment) and chrome.mjs (the renderer: the kit's page,
+                    bundled with esbuild and drawn frame by frame in headless Chrome)
 kit/                what scenes import as "#kit": timing (cue.tsx), the frame clock, primitives, theme
                     and the stage, plus the page the renderer draws them in (page.tsx)
 fonts/              CMU Serif and JetBrains Mono (SIL Open Font License)
 skills/lyceum/      the agent skill (Agent Skills format: SKILL.md + references/)
 .claude-plugin/     packages the skill as a Claude Code plugin and marketplace
-scripts/            maintainer scripts, not shipped: sync-version.mjs (run by `npm version`),
-                    chrome-hashes.mjs (the pinned Chrome's SHA-256s) and update-gitleaks.mjs (the
-                    credential rules narrate checks for)
+scripts/            maintainer scripts, not shipped: sync-version.mjs (run by `npm version`) and
+                    chrome-hashes.mjs (the pinned Chrome's SHA-256s)
 .github/workflows/  release.yml: a pushed vX.Y.Z tag becomes a GitHub Release
 explainers/         a Lyceum project of videos about Lyceum, made with this checkout (`file:..`): the
                     README's video. Not part of the published package
@@ -84,8 +82,6 @@ explainers/         a Lyceum project of videos about Lyceum, made with this chec
 - **Keep the skill agent-neutral.** Don't name one agent's tools in `skills/`. Write "if your agent can
   run subagents…", not a specific tool name.
 - **Licenses:** Lyceum is MIT, and its dependencies should stay permissive (MIT, Apache 2.0, ISC, BSD).
-  gitleaks's rules (MIT) are vendored in `tools/sensitive/` with its license: update them with
-  `node scripts/update-gitleaks.mjs`, never by hand.
   Don't copy code from Remotion, which Lyceum used to render with: its license isn't MIT.
 
 ## Releases

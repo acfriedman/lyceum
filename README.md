@@ -100,6 +100,7 @@ lyceum/
 | `coverage` | none | which tracked files must each have a video, from the repository's root: `{ "explains": "**/README.md", "exclude": ["Tests/**"] }`. A script names its file under `explains:`. `lyceum stale` lists files with no video and videos whose file is gone, and `lyceum embed` shows a video in its file as a thumbnail |
 | `pronounce` | `{}` | written → spoken, for every script (a script's own map wins) |
 | `allowSpoken` | `[]` | acronyms the narration check should allow |
+| `allowSensitive` | `[]` | exact strings the sensitive-string check should allow: `narrate` refuses narration with an email, phone number or credential in it (written or spoken) unless it's listed here. Only here, never in a script, and only by a person: each one used is recorded in `narration.json` |
 | `captions` | `"track"` | `"track"`: subtitles viewers turn on; `"burned"`: drawn into the picture (a script's `captions:` wins) |
 | `theme` | `"dark"` | `"dark"`: the dark canvas, for code explainers; `"paper"`: a light, formal look for presentations (a script's `theme:` wins) |
 

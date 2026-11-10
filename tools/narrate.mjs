@@ -20,6 +20,11 @@
 // does, nothing is sent to a hosted voice. It can also set a default `voice`, pin each provider's voice
 // under `voices` (its model, say), and add `pronounce` and `allowSpoken` entries that apply to every
 // script; a script's own frontmatter wins.
+//
+// Nothing is sent that holds a sensitive string (an email, a phone number or a credential, written or
+// spoken: see sensitive.mjs), whatever the provider, since the text also ends up in the captions. The
+// only exceptions are exact strings the project lists under `allowSensitive`, never a script's
+// frontmatter, and each one used is recorded in narration.json.
 
 import { createHash } from "node:crypto";
 import { execFile, execFileSync, spawnSync } from "node:child_process";
@@ -31,6 +36,7 @@ import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { toSrt } from "./captions.mjs";
+import { describe, findSensitive } from "./sensitive.mjs";
 import { parseScript, spokenText } from "./script.mjs";
 import { CACHE as CACHE_ROOT, CONFIG, CONFIG_FILE, HOME, ROOT, preparePublic, videoDir as resolveVideoDir, videoSlug } from "./paths.mjs";
 
@@ -302,6 +308,7 @@ async function cachedSpeech(request, attempt, extension, fetchAudio) {
 function openAISpeech(voice, input, attempt) {
   const request = { model: voice.model, voice: voice.id, input, instructions: voice.instructions, response_format: "mp3" };
   return cachedSpeech(request, attempt, "mp3", async () => {
+    assertSendable(request, "OpenAI");
     const response = await fetch("https://api.openai.com/v1/audio/speech", {
       method: "POST",
       headers: { Authorization: `Bearer ${secret("OPENAI_KEY", "OPENAI_API_KEY")}`, "Content-Type": "application/json" },
@@ -322,6 +329,7 @@ function geminiSpeech(voice, input, attempt) {
     generation_config: { speech_config: [{ voice: voice.id }] },
   };
   return cachedSpeech(request, attempt, "wav", async () => {
+    assertSendable(request, "Gemini");
     const response = await fetch("https://generativelanguage.googleapis.com/v1beta/interactions", {
       method: "POST",
       headers: { "x-goog-api-key": secret("GEMINI_API_KEY"), "Content-Type": "application/json" },
@@ -346,7 +354,7 @@ function geminiSpeech(voice, input, attempt) {
  * take, so they differ), then the paragraphs are joined with a short pause.
  */
 const byParagraph = (speech) => async (text, voice, mp3Path, label) => {
-  const paragraphs = text.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean);
+  const paragraphs = paragraphsOf(text);
   const parts = await Promise.all(
     paragraphs.map(async (paragraph, index) => {
       const partPath = mp3Path.replace(/\.mp3$/, `.p${index}.mp3`);
@@ -408,6 +416,7 @@ function joinParts(parts, mp3Path) {
 }
 
 async function synthesizeSay(text, voice, mp3Path) {
+  assertSendable({ text }, "say");
   const aiff = mp3Path.replace(/\.mp3$/, ".aiff");
   try {
     execFileSync("say", ["-v", voice.id, "-r", String(voice.rate), "-o", aiff, text]);
@@ -423,6 +432,40 @@ async function synthesizeSay(text, voice, mp3Path) {
 }
 
 const SYNTHESIZE = { openai: byParagraph(openAISpeech), gemini: byParagraph(geminiSpeech), say: synthesizeSay };
+
+/** A scene's paragraphs: a hosted voice reads each in a request of its own (see byParagraph). */
+function paragraphsOf(text) {
+  return text.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean);
+}
+
+/** The spoken text of every request voicing a scene sends: each paragraph with SENTINEL for a hosted
+ *  voice, the whole scene for say. (A hosted voice's instructions go with each one too.) */
+function requestTexts(text, provider) {
+  return provider === "say" ? [text] : paragraphsOf(text).map((paragraph) => `${paragraph} ${SENTINEL}`);
+}
+
+// Exact strings the project lets through the sensitive-string check: only from lyceum.config.json, which
+// the user controls, never from a script, which an agent writes and could approve its own exceptions in.
+const ALLOW_SENSITIVE = new Set(CONFIG.allowSensitive);
+
+/** The sensitive strings in some text: those the project didn't except (`refused`), and those it did. */
+function sensitive(texts) {
+  const found = [...new Map(texts.flatMap((text) => findSensitive(text)).map((f) => [f.match, f])).values()];
+  return { refused: found.filter((f) => !ALLOW_SENSITIVE.has(f.match)), excepted: found.filter((f) => ALLOW_SENSITIVE.has(f.match)) };
+}
+
+/** The last check before a request goes out: every string in it, the text and the voice's instructions.
+ *  Each scene was checked before any was voiced, so this only stops what slipped past that. */
+function assertSendable(request, provider) {
+  const strings = [];
+  const collect = (value) => {
+    if (typeof value === "string") strings.push(value);
+    else if (value && typeof value === "object") Object.values(value).forEach(collect);
+  };
+  collect(request);
+  const { refused } = sensitive(strings);
+  if (refused.length) throw new Error(`refusing to send ${provider} a request with ${refused.map(describe).join(", ")}`);
+}
 
 // Narration says things in full: no acronyms, no shortenings. Listeners can't see the spelling, and
 // "op" or "GCD" makes them decode instead of follow. Checked before anything is billed.
@@ -457,6 +500,13 @@ async function main() {
     allow_spoken: [...CONFIG.allowSpoken, ...(scripted.allow_spoken ?? [])],
   };
 
+  if (scripted.allowSensitive !== undefined || scripted.allow_sensitive !== undefined) {
+    throw new Error(
+      `${video}/script.md: a script can't list exceptions to the sensitive-string check; only the user can, ` +
+        `under allowSensitive in ${CONFIG_FILE}`,
+    );
+  }
+
   const timing = { ...DEFAULTS, ...(meta.timing ?? {}) };
   const voice = resolveVoice(args.provider, meta.voice, scripted.voice ? `${video}/script.md` : CONFIG_FILE);
   const provider = voice.provider;
@@ -486,12 +536,21 @@ async function main() {
 
   const allowed = new Set(meta.allow_spoken ?? []);
   const problems = [];
+  const leaks = [];
+  const exceptions = []; // each allowSensitive entry used, and where: recorded in narration.json
   const toVoice = [];
+  // A hosted voice's instructions go out with every request, so they matter once anything is voiced.
+  const instructions = provider !== "say" && voice.instructions ? sensitive([voice.instructions]) : { refused: [], excepted: [] };
+  exceptions.push(...instructions.excepted.map((f) => ({ in: "voice instructions", match: f.match })));
   for (const scene of scenes) {
-    if (args.only && args.only !== scene.id) continue;
     const text = spokenText(scene.narration, meta.pronounce);
+    // Every scene's exceptions are recorded, voiced now or not, so narration.json lists them all.
+    const { refused, excepted } = sensitive(requestTexts(text, provider));
+    exceptions.push(...excepted.map((f) => ({ in: scene.id, match: f.match })));
+    if (args.only && args.only !== scene.id) continue;
     if (cached(clipHash(text))) continue;
     toVoice.push(scene.id);
+    if (refused.length) leaks.push(`  ${scene.id}: ${refused.map(describe).join(", ")}`);
     const found = shortenings(text, allowed);
     if (found.length) problems.push(`  ${scene.id}: ${found.join(", ")}`);
   }
@@ -503,6 +562,15 @@ async function main() {
         `Lyceum's default is ${provider}: every scene would be voiced again, in another voice. To keep its voice, set ` +
         `"voice": { "provider": "${previous.provider}" } in ${CONFIG_FILE}, and list it under "providers". To move it to ` +
         `${provider}, narrate with --provider ${provider}.`,
+    );
+  }
+  if (toVoice.length && instructions.refused.length) leaks.unshift(`  the voice's instructions: ${instructions.refused.map(describe).join(", ")}`);
+  if (leaks.length) {
+    throw new Error(
+      `narration can't contain emails, phone numbers or credentials: it would be sent to ${provider}, and ` +
+        `written into the captions. Nothing was sent.\n${leaks.join("\n")}\n` +
+        `Take them out of script.md (credentials are shown shortened). If one really must be said, only the user can ` +
+        `allow it, by listing the exact string under allowSensitive in ${CONFIG_FILE}.`,
     );
   }
   if (problems.length) {
@@ -575,6 +643,7 @@ async function main() {
     width: timing.width,
     height: timing.height,
     frames: from,
+    ...(exceptions.length ? { sensitiveExceptions: exceptions } : {}),
     scenes: out,
   };
   writeFileSync(join(videoDir, "narration.json"), JSON.stringify(narration, null, 1) + "\n");

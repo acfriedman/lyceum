@@ -182,7 +182,7 @@ export const OwnProject: React.FC = () => {
         lines={[
           { text: '"imports": { "#kit": "lyceum/kit" },' },
           { text: '"dependencies": {' },
-          { text: '  "lyceum": "github:acfriedman/lyceum#semver:^0.3.0"', color: ROLE.lyceum },
+          { text: '  "lyceum": "github:acfriedman/lyceum#semver:^0.5.1"', color: ROLE.lyceum },
           { text: "}" },
         ]}
         highlight={[{ lines: [2], at: deps + s(0.5), color: ROLE.lyceum }]}

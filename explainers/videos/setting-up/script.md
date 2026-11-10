@@ -1,7 +1,7 @@
 ---
 title: "Where your videos live"
 status: approved by Andrew 2026-10-08, voice cedar
-updated: 2026-11-01
+updated: 2026-11-10
 # Written form → spoken form, applied only to the text sent to the voice.
 pronounce: {}
 sources:
@@ -12,10 +12,10 @@ sources:
   - tools/init.mjs (what init creates: lyceum.config.json, project.md, videos/index.ts, package.json, tsconfig.json, .gitignore, and the repository's .claude/settings.json; its printed output)
   - tools/version.mjs (the dependency init writes: github:acfriedman/lyceum#semver:^X.Y.Z)
   - tools/skill.mjs (skill link: per user by default, --project for one repository; "linked" and "skipped … already exists" output)
-  - tools/narrate.mjs (keys from the environment or the nearest .env; clips cached in .cache/)
+  - tools/narrate.mjs (keys from the environment or the project's own .env; clips cached in .cache/)
   - tools/stills.mjs and tools/render.mjs (stills need only narration.json; render needs the clips in .cache/public)
   - explainers/ (a real in-repository project: .gitignore, what-is-lyceum's committed files total 132 KB)
-verified: "4c3eb057daa2"
+verified: "612612ef3f49"
 captions: burned
 ---
 
@@ -69,7 +69,7 @@ Go or Swift, there's no dependencies file to add it to at all.
 > children appear one by one, matching init's real output: `lyceum.config.json`, `project.md`,
 > `videos/index.ts`, `package.json`, `tsconfig.json`, `.gitignore`; the terminal's last line, `created
 > ../.claude/settings.json`, has no row in the tree. On "its own dependencies", `lyceum/package.json`
-> highlights with `"lyceum": "github:acfriedman/lyceum#semver:^0.3.0"`. On "a guide for the
+> highlights with `"lyceum": "github:acfriedman/lyceum#semver:^0.5.1"`. On "a guide for the
 > agent", `project.md` highlights; on "a folder for videos", `videos/`. On "never sees", a dashed
 > boundary draws around `lyceum/`. On "monorepo", three labels approach the boundary from outside,
 > "workspaces", "root type check", "lint and continuous integration", and each stops short of it with a
@@ -137,7 +137,7 @@ for your whole user account, pointing at one project's copy of Lyceum. With two 
 versions, the agent only sees the first. So link it for one repository instead, and keep the link out
 of version control, since it points at your own install.
 
-Second, a voice key. Keep it in a key file inside the project, and make sure version control ignores
+Second, a voice key, unless you use the free voice built into the Mac. Keep it in a key file inside the project, and make sure version control ignores
 it.
 
 ## 06 · sharing — What travels with the project
